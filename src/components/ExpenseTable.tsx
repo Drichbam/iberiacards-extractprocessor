@@ -90,6 +90,26 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
     return categoryColors[categoria] || categoryColors['Other'];
   };
 
+  const getPieChartCategoryColor = (categoria: string) => {
+    const categoryTotals = expenses.reduce((acc, expense) => {
+      const amount = parseFloat(expense.importe.replace(',', '.')) || 0;
+      acc[expense.categoria] = (acc[expense.categoria] || 0) + amount;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const sortedCategories = Object.entries(categoryTotals)
+      .sort(([,a], [,b]) => b - a)
+      .map(([category]) => category);
+    
+    const COLORS = [
+      '#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00', 
+      '#ff00ff', '#00ffff', '#ffff00', '#ff0000', '#0000ff'
+    ];
+    
+    const categoryIndex = sortedCategories.indexOf(categoria);
+    return categoryIndex >= 0 ? COLORS[categoryIndex % COLORS.length] : '#8884d8';
+  };
+
   const SortButton = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
     <Button
       variant="ghost"
@@ -363,12 +383,23 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                   €{expense.importe}
                 </TableCell>
                 <TableCell>
-                  <Badge 
-                    variant="secondary" 
-                    className={cn("text-xs", getCategoryColor(expense.categoria))}
-                  >
-                    {expense.categoria}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-3 h-3 rounded-sm border border-gray-300" 
+                      style={{ backgroundColor: getPieChartCategoryColor(expense.categoria) }}
+                    />
+                    <Badge 
+                      variant="outline" 
+                      className="text-xs border-gray-300"
+                      style={{ 
+                        backgroundColor: `${getPieChartCategoryColor(expense.categoria)}20`,
+                        borderColor: getPieChartCategoryColor(expense.categoria),
+                        color: getPieChartCategoryColor(expense.categoria)
+                      }}
+                    >
+                      {expense.categoria}
+                    </Badge>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
