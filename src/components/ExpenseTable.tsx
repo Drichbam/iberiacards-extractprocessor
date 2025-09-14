@@ -8,6 +8,7 @@ import { ExpenseData } from "@/types/expense";
 import { exportToCSV } from "@/utils/csvExporter";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
 interface ExpenseTableProps {
   expenses: ExpenseData[];
@@ -158,40 +159,109 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
 
       {/* Subcategory Breakdown */}
       <div className="mb-6 p-4 rounded-lg border bg-muted/30">
-        <h3 className="font-semibold text-foreground mb-3">Spending by Subcategory</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {(() => {
-            const categoryTotals = expenses.reduce((acc, expense) => {
-              const amount = parseFloat(expense.importe.replace(',', '.')) || 0;
-              acc[expense.categoria] = (acc[expense.categoria] || 0) + amount;
-              return acc;
-            }, {} as Record<string, number>);
-            
-            const grandTotal = Object.values(categoryTotals).reduce((sum, amount) => sum + amount, 0);
-            
-            return Object.entries(categoryTotals)
-              .sort(([,a], [,b]) => b - a)
-              .map(([category, total]) => {
-                const percentage = grandTotal > 0 ? (total / grandTotal) * 100 : 0;
-                return (
-                  <div key={category} className="flex justify-between items-center p-2 rounded bg-background/50">
-                    <div className="flex items-center gap-2">
-                      <Badge 
-                        variant="secondary" 
-                        className={cn("text-xs", getCategoryColor(category))}
+        <h3 className="font-semibold text-foreground mb-4">Spending by Subcategory</h3>
+        
+        {(() => {
+          const categoryTotals = expenses.reduce((acc, expense) => {
+            const amount = parseFloat(expense.importe.replace(',', '.')) || 0;
+            acc[expense.categoria] = (acc[expense.categoria] || 0) + amount;
+            return acc;
+          }, {} as Record<string, number>);
+          
+          const grandTotal = Object.values(categoryTotals).reduce((sum, amount) => sum + amount, 0);
+          
+          const categoryData = Object.entries(categoryTotals)
+            .sort(([,a], [,b]) => b - a)
+            .map(([category, total]) => {
+              const percentage = grandTotal > 0 ? (total / grandTotal) * 100 : 0;
+              return {
+                name: category,
+                value: total,
+                percentage: percentage
+              };
+            });
+
+          // Colors for pie chart
+          const COLORS = [
+            '#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00', 
+            '#ff00ff', '#00ffff', '#ffff00', '#ff0000', '#0000ff'
+          ];
+          
+          return (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Table */}
+              <div>
+                <h4 className="font-medium text-foreground mb-3">Summary Table</h4>
+                <div className="rounded-lg border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="font-semibold">Subcategory</TableHead>
+                        <TableHead className="font-semibold text-right">Percentage</TableHead>
+                        <TableHead className="font-semibold text-right">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {categoryData.map((item, index) => (
+                        <TableRow key={item.name} className="hover:bg-muted/30">
+                          <TableCell>
+                            <Badge 
+                              variant="secondary" 
+                              className={cn("text-xs", getCategoryColor(item.name))}
+                            >
+                              {item.name}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {item.percentage.toFixed(1)}%
+                          </TableCell>
+                          <TableCell className="text-right font-bold">
+                            €{item.value.toFixed(2)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* Pie Chart */}
+              <div>
+                <h4 className="font-medium text-foreground mb-3">Visual Distribution</h4>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={categoryData}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                        label={({ percentage }) => `${percentage.toFixed(1)}%`}
+                        labelLine={false}
                       >
-                        {category}
-                      </Badge>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-semibold text-foreground">{percentage.toFixed(1)}%</div>
-                      <div className="font-bold text-base text-foreground">€{total.toFixed(2)}</div>
-                    </div>
-                  </div>
-                );
-              });
-          })()}
-        </div>
+                        {categoryData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value: number) => [`€${value.toFixed(2)}`, 'Amount']}
+                        labelFormatter={(label) => `Category: ${label}`}
+                      />
+                      <Legend 
+                        formatter={(value) => {
+                          const item = categoryData.find(d => d.name === value);
+                          return `${value} (${item?.percentage.toFixed(1)}%)`;
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Otros gastos (otros) Shops */}
