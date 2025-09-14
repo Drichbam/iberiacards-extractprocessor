@@ -1,17 +1,17 @@
 import { useState } from "react";
 import { FileUpload } from "@/components/FileUpload";
 import { ExpenseTable } from "@/components/ExpenseTable";
-import { processExpenseFile, ExpenseProcessingResult } from "@/utils/expenseProcessor";
+import { processExpenseFile, processMultipleExpenseFiles, ExpenseProcessingResult } from "@/utils/expenseProcessor";
 import { toast } from "@/hooks/use-toast";
 
 const Index = () => {
   const [processingResult, setProcessingResult] = useState<ExpenseProcessingResult | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = async (files: File[]) => {
     setIsProcessing(true);
     try {
-      const result = await processExpenseFile(file);
+      const result = await processMultipleExpenseFiles(files);
       setProcessingResult(result);
       
       const statusMessage = result.totalMatch 
@@ -20,14 +20,14 @@ const Index = () => {
       
       toast({
         title: "Processing Complete",
-        description: `${result.expenses.length} transactions processed. ${statusMessage}`,
+        description: `${result.expenses.length} transactions processed from ${files.length} file(s). ${statusMessage}`,
         variant: result.totalMatch ? "default" : "destructive"
       });
     } catch (error) {
-      console.error("Error processing file:", error);
+      console.error("Error processing files:", error);
       toast({
         title: "Error",
-        description: "Failed to process the file. Please check the format.",
+        description: error instanceof Error ? error.message : "Failed to process the files. Please check the format.",
         variant: "destructive",
       });
     } finally {

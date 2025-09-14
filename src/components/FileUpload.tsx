@@ -6,7 +6,7 @@ import { Upload, FileText, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface FileUploadProps {
-  onFileUpload: (file: File) => void;
+  onFileUpload: (files: File[]) => void;
   isProcessing: boolean;
 }
 
@@ -14,7 +14,7 @@ export const FileUpload = ({ onFileUpload, isProcessing }: FileUploadProps) => {
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
       if (acceptedFiles.length > 0) {
-        onFileUpload(acceptedFiles[0]);
+        onFileUpload(acceptedFiles);
       }
     },
     [onFileUpload]
@@ -28,7 +28,7 @@ export const FileUpload = ({ onFileUpload, isProcessing }: FileUploadProps) => {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
       'text/plain': ['.txt'],
     },
-    maxFiles: 1,
+    multiple: true,
     disabled: isProcessing,
   });
 
@@ -55,23 +55,23 @@ export const FileUpload = ({ onFileUpload, isProcessing }: FileUploadProps) => {
           
           <div className="space-y-1">
             <h3 className="text-lg font-semibold text-foreground">
-              {isProcessing ? "Processing your file..." : "Upload your credit card extract"}
+              {isProcessing ? "Processing your files..." : "Upload your credit card extracts"}
             </h3>
             <p className="text-foreground/70 font-medium">
               {isDragActive
-                ? "Drop the file here"
-                : "Drag & drop your file here, or click to select"}
+                ? "Drop the files here"
+                : "Drag & drop your files here, or click to select"}
             </p>
             <p className="text-sm text-foreground/60 font-medium">
-              Supports CSV, XLS, XLSX, and TXT files
+              Supports CSV, XLS, XLSX, and TXT files (multiple files allowed)
             </p>
           </div>
 
           {!isProcessing && (
-            <Button variant="default" className="mt-2">
-              <FileText className="mr-2 h-4 w-4" />
-              Select File
-            </Button>
+          <Button variant="default" className="mt-2">
+            <FileText className="mr-2 h-4 w-4" />
+            Select Files
+          </Button>
           )}
         </div>
       </div>
@@ -79,7 +79,10 @@ export const FileUpload = ({ onFileUpload, isProcessing }: FileUploadProps) => {
       {acceptedFiles.length > 0 && (
         <div className="mt-4 p-4 bg-success-light rounded-lg">
           <p className="text-sm text-success font-medium">
-            File selected: {acceptedFiles[0].name}
+            {acceptedFiles.length === 1 
+              ? `File selected: ${acceptedFiles[0].name}`
+              : `${acceptedFiles.length} files selected: ${acceptedFiles.map(f => f.name).join(', ')}`
+            }
           </p>
         </div>
       )}

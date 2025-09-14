@@ -9,6 +9,56 @@ export interface ExpenseProcessingResult {
   totalMatch: boolean;
 }
 
+export const processMultipleExpenseFiles = async (files: File[]): Promise<ExpenseProcessingResult> => {
+  if (files.length === 0) {
+    throw new Error('No files provided for processing');
+  }
+  
+  const results: ExpenseProcessingResult[] = [];
+  const errorFiles: string[] = [];
+  
+  // Process each file individually
+  for (const file of files) {
+    try {
+      const result = await processExpenseFile(file);
+      results.push(result);
+    } catch (error) {
+      errorFiles.push(file.name);
+      console.error(`Error processing file ${file.name}:`, error);
+    }
+  }
+  
+  // Check if any files failed to process
+  if (errorFiles.length > 0) {
+    throw new Error(`Failed to process the following files: ${errorFiles.join(', ')}. Please ensure all files are valid credit card extracts with the same format.`);
+  }
+  
+  if (results.length === 0) {
+    throw new Error('No files were successfully processed');
+  }
+  
+  // Consolidate all expenses
+  const allExpenses: ExpenseData[] = [];
+  let totalCalculated = 0;
+  let totalExpected = 0;
+  
+  for (const result of results) {
+    allExpenses.push(...result.expenses);
+    totalCalculated += result.calculatedTotal;
+    totalExpected += result.expectedTotal;
+  }
+  
+  // Check if totals match (allowing for small rounding differences)
+  const totalMatch = Math.abs(totalCalculated - totalExpected) < 0.01;
+  
+  return {
+    expenses: allExpenses,
+    calculatedTotal: totalCalculated,
+    expectedTotal: totalExpected,
+    totalMatch
+  };
+};
+
 export const processExpenseFile = async (file: File): Promise<ExpenseProcessingResult> => {
   let data: any[][];
   
