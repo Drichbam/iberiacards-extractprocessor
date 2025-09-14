@@ -33,11 +33,11 @@ export const FileUpload = ({ onFileUpload, isProcessing }: FileUploadProps) => {
   });
 
   return (
-    <Card className="p-8">
+    <Card className="p-6">
       <div
         {...getRootProps()}
         className={cn(
-          "border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 cursor-pointer",
+          "border-2 border-dashed rounded-lg p-6 text-center transition-all duration-200 cursor-pointer",
           "hover:border-primary hover:bg-accent/50",
           isDragActive && "border-primary bg-accent",
           isProcessing && "opacity-50 cursor-not-allowed",
@@ -46,23 +46,23 @@ export const FileUpload = ({ onFileUpload, isProcessing }: FileUploadProps) => {
       >
         <input {...getInputProps()} />
         
-        <div className="flex flex-col items-center gap-4">
+        <div className="flex flex-col items-center gap-3">
           {isProcessing ? (
-            <Loader2 className="h-12 w-12 text-primary animate-spin" />
+            <Loader2 className="h-10 w-10 text-primary animate-spin" />
           ) : (
-            <Upload className="h-12 w-12 text-primary" />
+            <Upload className="h-10 w-10 text-primary" />
           )}
           
-          <div className="space-y-2">
+          <div className="space-y-1">
             <h3 className="text-lg font-semibold text-foreground">
               {isProcessing ? "Processing your file..." : "Upload your credit card extract"}
             </h3>
-            <p className="text-muted-foreground">
+            <p className="text-foreground/70 font-medium">
               {isDragActive
                 ? "Drop the file here"
                 : "Drag & drop your file here, or click to select"}
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-foreground/60 font-medium">
               Supports CSV, XLS, XLSX, and TXT files
             </p>
           </div>

@@ -94,7 +94,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
     <Button
       variant="ghost"
       onClick={() => handleSort(field)}
-      className="h-auto p-0 font-semibold hover:bg-transparent"
+      className="h-auto p-0 font-bold text-foreground hover:bg-transparent hover:text-primary"
     >
       <div className="flex items-center gap-1">
         {children}
@@ -195,11 +195,11 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                 <div className="rounded-lg border overflow-hidden">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-muted/50">
-                        <TableHead className="font-semibold w-12">Color</TableHead>
-                        <TableHead className="font-semibold">Subcategory</TableHead>
-                        <TableHead className="font-semibold text-right">Percentage</TableHead>
-                        <TableHead className="font-semibold text-right">Amount</TableHead>
+                      <TableRow className="bg-muted border-b-2 border-border">
+                        <TableHead className="font-bold text-foreground w-12">Color</TableHead>
+                        <TableHead className="font-bold text-foreground">Subcategory</TableHead>
+                        <TableHead className="font-bold text-foreground text-right">Percentage</TableHead>
+                        <TableHead className="font-bold text-foreground text-right">Amount</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -319,20 +319,20 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
       <div className="rounded-lg border overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/50">
-              <TableHead className="font-semibold">
+            <TableRow className="bg-muted border-b-2 border-border">
+              <TableHead className="font-bold text-foreground">
                 <SortButton field="card_number">Card Number</SortButton>
               </TableHead>
-              <TableHead className="font-semibold">
+              <TableHead className="font-bold text-foreground">
                 <SortButton field="fecha">Date</SortButton>
               </TableHead>
-              <TableHead className="font-semibold">
+              <TableHead className="font-bold text-foreground">
                 <SortButton field="comercio">Merchant</SortButton>
               </TableHead>
-              <TableHead className="font-semibold text-right">
+              <TableHead className="font-bold text-foreground text-right">
                 <SortButton field="importe">Amount</SortButton>
               </TableHead>
-              <TableHead className="font-semibold">
+              <TableHead className="font-bold text-foreground">
                 <SortButton field="categoria">Subcategory</SortButton>
               </TableHead>
             </TableRow>

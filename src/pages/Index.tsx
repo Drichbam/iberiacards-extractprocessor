@@ -37,19 +37,19 @@ const Index = () => {
 
   return (
     <main className="min-h-screen bg-background">
-      <div className="container max-w-7xl mx-auto px-6 py-8">
+      <div className="container max-w-7xl mx-auto px-6 py-6">
         {/* Header */}
-        <header className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-3">
+        <header className="text-center mb-6">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
             Credit Card Expense Categorizer
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-lg text-foreground/80 max-w-2xl mx-auto font-medium">
             Upload your monthly credit card extract and get organized, categorized expenses ready for export
           </p>
         </header>
 
         {/* Upload Section */}
-        <section className="mb-8">
+        <section className="mb-6">
           <FileUpload onFileUpload={handleFileUpload} isProcessing={isProcessing} />
         </section>
 
