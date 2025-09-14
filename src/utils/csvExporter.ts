@@ -2,7 +2,7 @@ import { ExpenseData } from "@/types/expense";
 
 export const exportToCSV = (expenses: ExpenseData[]) => {
   // CSV headers
-  const headers = ['card_number', 'Fecha', 'Comercio', 'IMPORTE', 'Categoria'];
+  const headers = ['card_number', 'Fecha', 'Comercio', 'IMPORTE', 'Subcategoria'];
   
   // Create CSV content
   const csvContent = [

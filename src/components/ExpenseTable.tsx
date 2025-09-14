@@ -125,7 +125,7 @@ export const ExpenseTable = ({ expenses }: ExpenseTableProps) => {
                 <SortButton field="importe">Amount</SortButton>
               </TableHead>
               <TableHead className="font-semibold">
-                <SortButton field="categoria">Category</SortButton>
+                <SortButton field="categoria">Subcategory</SortButton>
               </TableHead>
             </TableRow>
           </TableHeader>
