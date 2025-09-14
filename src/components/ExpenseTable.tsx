@@ -196,6 +196,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/50">
+                        <TableHead className="font-semibold w-12">Color</TableHead>
                         <TableHead className="font-semibold">Subcategory</TableHead>
                         <TableHead className="font-semibold text-right">Percentage</TableHead>
                         <TableHead className="font-semibold text-right">Amount</TableHead>
@@ -204,6 +205,12 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                     <TableBody>
                       {categoryData.map((item, index) => (
                         <TableRow key={item.name} className="hover:bg-muted/30">
+                          <TableCell className="w-12">
+                            <div 
+                              className="w-4 h-4 rounded-sm border border-gray-300" 
+                              style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                            />
+                          </TableCell>
                           <TableCell>
                             <Badge 
                               variant="secondary" 
@@ -235,10 +242,14 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                         data={categoryData}
                         cx="50%"
                         cy="50%"
-                        outerRadius={80}
+                        outerRadius={100}
+                        innerRadius={40}
                         fill="#8884d8"
                         dataKey="value"
-                        label={({ percentage }) => `${percentage.toFixed(1)}%`}
+                        label={({ percentage, index }) => {
+                          if (percentage < 5) return '';
+                          return `${percentage.toFixed(1)}%`;
+                        }}
                         labelLine={false}
                       >
                         {categoryData.map((entry, index) => (
@@ -248,12 +259,6 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                       <Tooltip 
                         formatter={(value: number) => [`€${value.toFixed(2)}`, 'Amount']}
                         labelFormatter={(label) => `Category: ${label}`}
-                      />
-                      <Legend 
-                        formatter={(value) => {
-                          const item = categoryData.find(d => d.name === value);
-                          return `${value} (${item?.percentage.toFixed(1)}%)`;
-                        }}
                       />
                     </PieChart>
                   </ResponsiveContainer>
