@@ -184,7 +184,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                       </Badge>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs text-muted-foreground">{percentage.toFixed(1)}%</div>
+                      <div className="text-xs font-medium text-foreground/70">{percentage.toFixed(1)}%</div>
                       <div className="font-semibold text-sm">€{total.toFixed(2)}</div>
                     </div>
                   </div>
