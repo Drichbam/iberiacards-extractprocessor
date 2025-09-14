@@ -139,6 +139,35 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
         </div>
       </div>
 
+      {/* Subcategory Breakdown */}
+      <div className="mb-6 p-4 rounded-lg border bg-muted/30">
+        <h3 className="font-semibold text-foreground mb-3">Spending by Subcategory</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {Object.entries(
+            expenses.reduce((acc, expense) => {
+              const amount = parseFloat(expense.importe.replace(',', '.')) || 0;
+              acc[expense.categoria] = (acc[expense.categoria] || 0) + amount;
+              return acc;
+            }, {} as Record<string, number>)
+          )
+            .sort(([,a], [,b]) => b - a)
+            .map(([category, total]) => (
+              <div key={category} className="flex justify-between items-center p-2 rounded bg-background/50">
+                <div className="flex items-center gap-2">
+                  <Badge 
+                    variant="secondary" 
+                    className={cn("text-xs", getCategoryColor(category))}
+                  >
+                    {category}
+                  </Badge>
+                </div>
+                <span className="font-semibold text-sm">€{total.toFixed(2)}</span>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+
       <div className="rounded-lg border overflow-hidden">
         <Table>
           <TableHeader>
