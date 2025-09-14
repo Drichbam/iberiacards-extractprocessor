@@ -3,7 +3,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Download, ChevronUp, ChevronDown, CheckCircle, AlertTriangle, Copy } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Download, ChevronUp, ChevronDown, CheckCircle, AlertTriangle, Copy, Filter } from "lucide-react";
 import { ExpenseData } from "@/types/expense";
 import { exportToCSV } from "@/utils/csvExporter";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ type SortDirection = 'asc' | 'desc';
 export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMatch }: ExpenseTableProps) => {
   const [sortField, setSortField] = useState<SortField>('fecha');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const { toast } = useToast();
 
   const handleSort = (field: SortField) => {
@@ -34,7 +36,12 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
     }
   };
 
-  const sortedExpenses = [...expenses].sort((a, b) => {
+  // Filter expenses by category
+  const filteredExpenses = categoryFilter === 'all' 
+    ? expenses 
+    : expenses.filter(expense => expense.categoria === categoryFilter);
+
+  const sortedExpenses = [...filteredExpenses].sort((a, b) => {
     const aValue = a[sortField];
     const bValue = b[sortField];
     
@@ -135,7 +142,12 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
             Processed Expenses
           </h2>
           <p className="text-muted-foreground">
-            {expenses.length} transactions
+            {filteredExpenses.length} of {expenses.length} transactions
+            {categoryFilter !== 'all' && (
+              <span className="ml-2 text-xs">
+                (filtered by {categoryFilter})
+              </span>
+            )}
           </p>
         </div>
         <Button onClick={handleDownload} variant="default">
@@ -364,7 +376,33 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                 <SortButton field="importe">Amount</SortButton>
               </TableHead>
               <TableHead className="font-bold text-foreground">
-                <SortButton field="categoria">Subcategory</SortButton>
+                <div className="flex items-center gap-2">
+                  <SortButton field="categoria">Subcategory</SortButton>
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="w-[150px] h-7 text-xs">
+                      <div className="flex items-center gap-1">
+                        <Filter className="h-3 w-3" />
+                        <SelectValue placeholder="All" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {[...new Set(expenses.map(expense => expense.categoria))]
+                        .sort()
+                        .map(category => (
+                          <SelectItem key={category} value={category}>
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-2 h-2 rounded-sm border border-gray-300" 
+                                style={{ backgroundColor: getPieChartCategoryColor(category) }}
+                              />
+                              <span className="truncate max-w-[120px]">{category}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </TableHead>
             </TableRow>
           </TableHeader>
