@@ -160,28 +160,37 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
       <div className="mb-6 p-4 rounded-lg border bg-muted/30">
         <h3 className="font-semibold text-foreground mb-3">Spending by Subcategory</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {Object.entries(
-            expenses.reduce((acc, expense) => {
+          {(() => {
+            const categoryTotals = expenses.reduce((acc, expense) => {
               const amount = parseFloat(expense.importe.replace(',', '.')) || 0;
               acc[expense.categoria] = (acc[expense.categoria] || 0) + amount;
               return acc;
-            }, {} as Record<string, number>)
-          )
-            .sort(([,a], [,b]) => b - a)
-            .map(([category, total]) => (
-              <div key={category} className="flex justify-between items-center p-2 rounded bg-background/50">
-                <div className="flex items-center gap-2">
-                  <Badge 
-                    variant="secondary" 
-                    className={cn("text-xs", getCategoryColor(category))}
-                  >
-                    {category}
-                  </Badge>
-                </div>
-                <span className="font-semibold text-sm">€{total.toFixed(2)}</span>
-              </div>
-            ))
-          }
+            }, {} as Record<string, number>);
+            
+            const grandTotal = Object.values(categoryTotals).reduce((sum, amount) => sum + amount, 0);
+            
+            return Object.entries(categoryTotals)
+              .sort(([,a], [,b]) => b - a)
+              .map(([category, total]) => {
+                const percentage = grandTotal > 0 ? (total / grandTotal) * 100 : 0;
+                return (
+                  <div key={category} className="flex justify-between items-center p-2 rounded bg-background/50">
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant="secondary" 
+                        className={cn("text-xs", getCategoryColor(category))}
+                      >
+                        {category}
+                      </Badge>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-muted-foreground">{percentage.toFixed(1)}%</div>
+                      <div className="font-semibold text-sm">€{total.toFixed(2)}</div>
+                    </div>
+                  </div>
+                );
+              });
+          })()}
         </div>
       </div>
 
