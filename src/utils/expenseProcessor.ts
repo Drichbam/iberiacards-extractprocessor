@@ -23,86 +23,132 @@ export const processExpenseFile = async (file: File): Promise<ExpenseData[]> => 
     throw new Error('File appears to be empty or invalid');
   }
 
-  // Find the card number (look for IBERIA ICON row)
-  let cardNumber = '';
-  for (let i = 0; i < Math.min(50, data.length); i++) {
+  // Find all IBERIA ICON cards and their transaction tables
+  const cardSections: Array<{cardNumber: string, headerRow: number}> = [];
+  
+  for (let i = 0; i < data.length; i++) {
     const row = data[i];
     if (row && row.length > 2) {
       const cellValue = String(row[0] || '').toUpperCase();
       if (cellValue.includes('IBERIA') && cellValue.includes('ICON') && row[2]) {
-        cardNumber = String(row[2]).trim();
-        break;
+        const cardNumber = String(row[2]).trim();
+        
+        // Find the corresponding transaction header (should be within next few rows)
+        for (let j = i + 1; j < Math.min(i + 10, data.length); j++) {
+          const headerRow = data[j];
+          if (headerRow && headerRow.length >= 5) {
+            const rowStr = headerRow.map((cell: any) => String(cell || '').toLowerCase()).join('|');
+            if (rowStr.includes('fecha') && rowStr.includes('operación') && 
+                rowStr.includes('comercio') && rowStr.includes('importe') && rowStr.includes('euros')) {
+              cardSections.push({ cardNumber, headerRow: j });
+              break;
+            }
+          }
+        }
       }
     }
   }
   
-  // Find the transaction header row (look for "FECHA OPERACIÓN", "COMERCIO", "IMPORTE EUROS")
-  let headerRowIndex = -1;
-  for (let i = 0; i < Math.min(50, data.length); i++) {
+  if (cardSections.length === 0) {
+    throw new Error('Could not find any IBERIA ICON cards in the file');
+  }
+
+  // Find TOTAL A CARGAR for validation
+  let expectedTotal = 0;
+  for (let i = 0; i < data.length; i++) {
     const row = data[i];
-    if (row && row.length >= 5) {
-      const rowStr = row.map((cell: any) => String(cell || '').toLowerCase()).join('|');
-      if (rowStr.includes('fecha') && rowStr.includes('operación') && 
-          rowStr.includes('comercio') && rowStr.includes('importe') && rowStr.includes('euros')) {
-        headerRowIndex = i;
+    if (row && row.length > 2) {
+      const cellValue = String(row[2] || '').toUpperCase();
+      if (cellValue.includes('TOTAL') && cellValue.includes('CARGAR') && row[4]) {
+        const totalStr = String(row[4]).replace(/[^\d,.-]/g, '').replace(',', '.');
+        expectedTotal = parseFloat(totalStr) || 0;
         break;
       }
     }
   }
-  
-  if (headerRowIndex === -1) {
-    throw new Error('Could not find the transaction data table in the file');
+
+  const allExpenses: ExpenseData[] = [];
+  let calculatedTotal = 0;
+
+  // Process each card section
+  for (let cardIndex = 0; cardIndex < cardSections.length; cardIndex++) {
+    const { cardNumber, headerRow } = cardSections[cardIndex];
+    
+    // Determine the end of this card's transactions (either next card section or end of data)
+    const nextCardRow = cardIndex + 1 < cardSections.length 
+      ? cardSections[cardIndex + 1].headerRow 
+      : data.length;
+
+    // Process transactions for this card
+    for (let i = headerRow + 1; i < nextCardRow; i++) {
+      const row = data[i];
+      
+      if (!row || row.length < 5) continue;
+      
+      // Check if we've hit another section (empty rows or different structure)
+      if (!row[0] || String(row[0]).trim() === '' || 
+          String(row[0]).toUpperCase().includes('IBERIA') ||
+          String(row[0]).toLowerCase().includes('total') ||
+          String(row[0]).toLowerCase().includes('deuda')) {
+        continue;
+      }
+      
+      const transactionNumber = String(row[0] || '').trim();
+      const rawDate = String(row[1] || '').trim();
+      const merchant = String(row[2] || '').trim();
+      const rawAmount = String(row[4] || '').trim(); // IMPORTE EUROS column
+
+      // Skip if not a valid transaction row
+      if (!merchant || !rawDate || !rawAmount || 
+          merchant === 'undefined' || rawAmount === 'undefined' ||
+          !transactionNumber.match(/^\d+$/)) {
+        continue;
+      }
+
+      // Format date to YYYY-MM-DD
+      const formattedDate = formatDate(rawDate);
+      
+      // Clean and format amount (remove currency symbols, keep numbers and decimal separators)
+      const cleanAmount = rawAmount.replace(/[^\d,.-]/g, '');
+      
+      // Skip if no valid amount
+      if (!cleanAmount || cleanAmount === '0' || cleanAmount === '0.00') {
+        continue;
+      }
+      
+      // Add to calculated total for validation
+      const numericAmount = parseFloat(cleanAmount.replace(',', '.')) || 0;
+      calculatedTotal += numericAmount;
+      
+      // Categorize the transaction
+      const category = categorizeTransaction(merchant);
+
+      allExpenses.push({
+        card_number: cardNumber,
+        fecha: formattedDate,
+        comercio: merchant,
+        importe: cleanAmount,
+        categoria: category,
+      });
+    }
   }
 
-  const processedExpenses: ExpenseData[] = [];
-
-  // Process transactions starting from the row after header
-  for (let i = headerRowIndex + 1; i < data.length; i++) {
-    const row = data[i];
-    
-    if (!row || row.length < 5) continue;
-    
-    // Expected format: [Nº, FECHA OPERACIÓN, COMERCIO, IMPORTE DIVISA, IMPORTE EUROS, ...]
-    const transactionNumber = String(row[0] || '').trim();
-    const rawDate = String(row[1] || '').trim();
-    const merchant = String(row[2] || '').trim();
-    const rawAmount = String(row[4] || '').trim(); // IMPORTE EUROS column
-
-    // Skip empty rows or rows without essential data
-    if (!merchant || !rawDate || !rawAmount || 
-        merchant === 'undefined' || rawAmount === 'undefined' ||
-        !transactionNumber.match(/^\d+$/)) {
-      continue;
-    }
-
-    // Format date to YYYY-MM-DD
-    const formattedDate = formatDate(rawDate);
-    
-    // Clean and format amount (remove currency symbols, keep numbers and decimal separators)
-    const cleanAmount = rawAmount.replace(/[^\d,.-]/g, '');
-    
-    // Skip if no valid amount
-    if (!cleanAmount || cleanAmount === '0' || cleanAmount === '0.00') {
-      continue;
-    }
-    
-    // Categorize the transaction
-    const category = categorizeTransaction(merchant);
-
-    processedExpenses.push({
-      card_number: cardNumber,
-      fecha: formattedDate,
-      comercio: merchant,
-      importe: cleanAmount,
-      categoria: category,
-    });
-  }
-
-  if (processedExpenses.length === 0) {
+  if (allExpenses.length === 0) {
     throw new Error('No valid transactions found in the file');
   }
 
-  return processedExpenses;
+  // Validate total if we found an expected total
+  if (expectedTotal > 0) {
+    const difference = Math.abs(calculatedTotal - expectedTotal);
+    if (difference > 0.10) { // Allow small rounding differences
+      console.warn(`Total mismatch: Expected ${expectedTotal}€, calculated ${calculatedTotal}€ (difference: ${difference}€)`);
+      // Don't throw error, just warn, as there might be minor formatting differences
+    }
+  }
+
+  console.log(`Processed ${allExpenses.length} transactions from ${cardSections.length} cards. Total: ${calculatedTotal}€${expectedTotal > 0 ? ` (Expected: ${expectedTotal}€)` : ''}`);
+
+  return allExpenses;
 };
 
 const formatDate = (dateString: string): string => {
