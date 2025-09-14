@@ -81,6 +81,19 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
     });
   };
 
+  const handleCopyAllMerchants = () => {
+    const uniqueMerchants = [...new Set(
+      expenses.map(expense => expense.comercio)
+    )].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    
+    const merchantsList = uniqueMerchants.join('\n');
+    navigator.clipboard.writeText(merchantsList);
+    toast({
+      title: "Merchants copied to clipboard",
+      description: `${uniqueMerchants.length} unique merchants copied`,
+    });
+  };
+
   const getCategoryColor = (categoria: string) => {
     const categoryColors: Record<string, string> = {
       'Food & Dining': 'bg-orange-100 text-orange-800',
@@ -150,10 +163,16 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
             )}
           </p>
         </div>
-        <Button onClick={handleDownload} variant="default">
-          <Download className="mr-2 h-4 w-4" />
-          Export CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleCopyAllMerchants} variant="outline">
+            <Copy className="mr-2 h-4 w-4" />
+            Copy Merchants
+          </Button>
+          <Button onClick={handleDownload} variant="default">
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
+          </Button>
+        </div>
       </div>
 
       {/* Total Verification Section */}
