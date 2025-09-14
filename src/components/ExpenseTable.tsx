@@ -277,21 +277,22 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                         ))}
                       </Pie>
                       <Tooltip 
-                        content={({ active, payload, label }) => {
-                          if (active && payload && payload.length) {
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length > 0) {
                             const data = payload[0];
+                            const subcategory = data.payload?.name || 'Unknown';
                             const value = Number(data.value) || 0;
                             const percentage = data.payload?.percentage || 0;
                             return (
-                              <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
-                                <p className="font-semibold text-foreground mb-1">
-                                  {label}
+                              <div className="bg-background border border-border rounded-lg p-3 shadow-lg max-w-xs">
+                                <p className="font-bold text-foreground text-base mb-2">
+                                  {subcategory}
                                 </p>
-                                <p className="text-primary font-medium">
-                                  Amount: €{value.toFixed(2)}
+                                <p className="text-primary font-semibold text-sm">
+                                  €{value.toFixed(2)}
                                 </p>
                                 <p className="text-muted-foreground text-sm">
-                                  {percentage.toFixed(1)}% of total
+                                  {percentage.toFixed(1)}% of total spending
                                 </p>
                               </div>
                             );
