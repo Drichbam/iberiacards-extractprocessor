@@ -257,8 +257,17 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                         ))}
                       </Pie>
                       <Tooltip 
-                        formatter={(value: number) => [`€${value.toFixed(2)}`, 'Amount']}
-                        labelFormatter={(label) => `Category: ${label}`}
+                        formatter={(value: number, name: string, props: any) => [
+                          `€${value.toFixed(2)}`, 
+                          'Amount'
+                        ]}
+                        labelFormatter={(label) => `Subcategory: ${label}`}
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--background))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '6px',
+                          color: 'hsl(var(--foreground))'
+                        }}
                       />
                     </PieChart>
                   </ResponsiveContainer>
