@@ -2,7 +2,14 @@ import { ExpenseData } from "@/types/expense";
 import { categorizeTransaction } from "./merchantCategorizer";
 import * as XLSX from 'xlsx';
 
-export const processExpenseFile = async (file: File): Promise<ExpenseData[]> => {
+export interface ExpenseProcessingResult {
+  expenses: ExpenseData[];
+  calculatedTotal: number;
+  expectedTotal: number;
+  totalMatch: boolean;
+}
+
+export const processExpenseFile = async (file: File): Promise<ExpenseProcessingResult> => {
   let data: any[][];
   
   if (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')) {
@@ -148,7 +155,14 @@ export const processExpenseFile = async (file: File): Promise<ExpenseData[]> => 
 
   console.log(`Processed ${allExpenses.length} transactions from ${cardSections.length} cards. Total: ${calculatedTotal}€${expectedTotal > 0 ? ` (Expected: ${expectedTotal}€)` : ''}`);
 
-  return allExpenses;
+  const totalMatch = expectedTotal > 0 ? Math.abs(calculatedTotal - expectedTotal) <= 0.10 : true;
+
+  return {
+    expenses: allExpenses,
+    calculatedTotal,
+    expectedTotal,
+    totalMatch
+  };
 };
 
 const formatDate = (dateString: string): string => {

@@ -3,19 +3,22 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Download, ChevronUp, ChevronDown } from "lucide-react";
+import { Download, ChevronUp, ChevronDown, CheckCircle, AlertTriangle } from "lucide-react";
 import { ExpenseData } from "@/types/expense";
 import { exportToCSV } from "@/utils/csvExporter";
 import { cn } from "@/lib/utils";
 
 interface ExpenseTableProps {
   expenses: ExpenseData[];
+  calculatedTotal: number;
+  expectedTotal: number;
+  totalMatch: boolean;
 }
 
 type SortField = keyof ExpenseData;
 type SortDirection = 'asc' | 'desc';
 
-export const ExpenseTable = ({ expenses }: ExpenseTableProps) => {
+export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMatch }: ExpenseTableProps) => {
   const [sortField, setSortField] = useState<SortField>('fecha');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
@@ -86,11 +89,6 @@ export const ExpenseTable = ({ expenses }: ExpenseTableProps) => {
     </Button>
   );
 
-  const totalAmount = expenses.reduce((sum, expense) => {
-    const amount = parseFloat(expense.importe.toString().replace(',', '.'));
-    return sum + (isNaN(amount) ? 0 : amount);
-  }, 0);
-
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-6">
@@ -99,13 +97,46 @@ export const ExpenseTable = ({ expenses }: ExpenseTableProps) => {
             Processed Expenses
           </h2>
           <p className="text-muted-foreground">
-            {expenses.length} transactions • Total: €{totalAmount.toFixed(2)}
+            {expenses.length} transactions
           </p>
         </div>
         <Button onClick={handleDownload} variant="default">
           <Download className="mr-2 h-4 w-4" />
           Export CSV
         </Button>
+      </div>
+
+      {/* Total Verification Section */}
+      <div className="mb-6 p-4 rounded-lg border bg-muted/30">
+        <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+          {totalMatch ? (
+            <CheckCircle className="h-5 w-5 text-green-600" />
+          ) : (
+            <AlertTriangle className="h-5 w-5 text-orange-600" />
+          )}
+          Total Verification
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div>
+            <span className="text-muted-foreground">Calculated Total:</span>
+            <p className="font-semibold text-lg">€{calculatedTotal.toFixed(2)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Expected Total (TOTAL A CARGAR):</span>
+            <p className="font-semibold text-lg">€{expectedTotal.toFixed(2)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Status:</span>
+            <p className={cn("font-semibold", totalMatch ? "text-green-600" : "text-orange-600")}>
+              {totalMatch ? "✓ Match" : "⚠ Difference"}
+            </p>
+            {!totalMatch && (
+              <p className="text-xs text-muted-foreground">
+                Difference: €{Math.abs(calculatedTotal - expectedTotal).toFixed(2)}
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="rounded-lg border overflow-hidden">

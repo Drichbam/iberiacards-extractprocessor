@@ -1,22 +1,27 @@
 import { useState } from "react";
 import { FileUpload } from "@/components/FileUpload";
 import { ExpenseTable } from "@/components/ExpenseTable";
-import { processExpenseFile } from "@/utils/expenseProcessor";
-import { ExpenseData } from "@/types/expense";
+import { processExpenseFile, ExpenseProcessingResult } from "@/utils/expenseProcessor";
 import { toast } from "@/hooks/use-toast";
 
 const Index = () => {
-  const [expenses, setExpenses] = useState<ExpenseData[]>([]);
+  const [processingResult, setProcessingResult] = useState<ExpenseProcessingResult | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleFileUpload = async (file: File) => {
     setIsProcessing(true);
     try {
-      const processedExpenses = await processExpenseFile(file);
-      setExpenses(processedExpenses);
+      const result = await processExpenseFile(file);
+      setProcessingResult(result);
+      
+      const statusMessage = result.totalMatch 
+        ? "Totals match perfectly!" 
+        : `Warning: Calculated total (€${result.calculatedTotal.toFixed(2)}) differs from expected (€${result.expectedTotal.toFixed(2)})`;
+      
       toast({
-        title: "Success",
-        description: `Processed ${processedExpenses.length} transactions`,
+        title: "Processing Complete",
+        description: `${result.expenses.length} transactions processed. ${statusMessage}`,
+        variant: result.totalMatch ? "default" : "destructive"
       });
     } catch (error) {
       console.error("Error processing file:", error);
@@ -49,9 +54,14 @@ const Index = () => {
         </section>
 
         {/* Results Section */}
-        {expenses.length > 0 && (
+        {processingResult && (
           <section>
-            <ExpenseTable expenses={expenses} />
+            <ExpenseTable 
+              expenses={processingResult.expenses}
+              calculatedTotal={processingResult.calculatedTotal}
+              expectedTotal={processingResult.expectedTotal}
+              totalMatch={processingResult.totalMatch}
+            />
           </section>
         )}
       </div>
