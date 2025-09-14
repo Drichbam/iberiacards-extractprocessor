@@ -3,10 +3,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Download, ChevronUp, ChevronDown, CheckCircle, AlertTriangle } from "lucide-react";
+import { Download, ChevronUp, ChevronDown, CheckCircle, AlertTriangle, Copy } from "lucide-react";
 import { ExpenseData } from "@/types/expense";
 import { exportToCSV } from "@/utils/csvExporter";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 interface ExpenseTableProps {
   expenses: ExpenseData[];
@@ -21,6 +22,7 @@ type SortDirection = 'asc' | 'desc';
 export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMatch }: ExpenseTableProps) => {
   const [sortField, setSortField] = useState<SortField>('fecha');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const { toast } = useToast();
 
   const handleSort = (field: SortField) => {
     if (field === sortField) {
@@ -54,6 +56,21 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
 
   const handleDownload = () => {
     exportToCSV(expenses);
+  };
+
+  const handleCopyOtherShops = () => {
+    const otherShops = [...new Set(
+      expenses
+        .filter(expense => expense.categoria === "Otros gastos (otros)")
+        .map(expense => expense.comercio)
+    )];
+    
+    const shopsList = otherShops.join('\n');
+    navigator.clipboard.writeText(shopsList);
+    toast({
+      title: "Copied to clipboard",
+      description: `${otherShops.length} unique shops copied`,
+    });
   };
 
   const getCategoryColor = (categoria: string) => {
@@ -167,6 +184,44 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
           }
         </div>
       </div>
+
+      {/* Otros gastos (otros) Shops */}
+      {expenses.some(expense => expense.categoria === "Otros gastos (otros)") && (
+        <div className="mb-6 p-4 rounded-lg border bg-muted/30">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-foreground">Shops Categorized as "Otros gastos (otros)"</h3>
+            <Button
+              onClick={handleCopyOtherShops}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <Copy className="h-4 w-4" />
+              Copy List
+            </Button>
+          </div>
+          <div className="text-sm text-muted-foreground mb-2">
+            {[...new Set(
+              expenses
+                .filter(expense => expense.categoria === "Otros gastos (otros)")
+                .map(expense => expense.comercio)
+            )].length} unique shops
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-32 overflow-y-auto">
+            {[...new Set(
+              expenses
+                .filter(expense => expense.categoria === "Otros gastos (otros)")
+                .map(expense => expense.comercio)
+            )]
+              .sort()
+              .map((shop, index) => (
+                <div key={index} className="text-sm p-2 rounded bg-background/50 border">
+                  {shop}
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
 
       <div className="rounded-lg border overflow-hidden">
         <Table>
