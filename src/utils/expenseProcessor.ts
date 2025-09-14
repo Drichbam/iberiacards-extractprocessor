@@ -1,48 +1,79 @@
 import { ExpenseData } from "@/types/expense";
 import { categorizeTransaction } from "./merchantCategorizer";
+import * as XLSX from 'xlsx';
 
 export const processExpenseFile = async (file: File): Promise<ExpenseData[]> => {
-  const text = await file.text();
-  const lines = text.split('\n').filter(line => line.trim());
+  let data: any[][];
   
-  if (lines.length < 2) {
+  if (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')) {
+    // Handle Excel files
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+  } else {
+    // Handle CSV/text files
+    const text = await file.text();
+    const lines = text.split('\n').filter(line => line.trim());
+    data = lines.map(line => line.split(/[,;\t]/).map(cell => cell.trim().replace(/"/g, '')));
+  }
+  
+  if (data.length < 2) {
     throw new Error('File appears to be empty or invalid');
   }
 
-  // Parse header to find column indices
-  const headers = lines[0].split(/[,;\t]/).map(h => h.trim().toLowerCase());
+  // Find the header row (look for "IBERIA ICON" column)
+  let headerRowIndex = -1;
+  let headers: string[] = [];
   
+  for (let i = 0; i < Math.min(10, data.length); i++) {
+    const row = data[i].map((cell: any) => String(cell || '').toLowerCase());
+    if (row.some(cell => cell.includes('iberia') && cell.includes('icon'))) {
+      headerRowIndex = i;
+      headers = row;
+      break;
+    }
+  }
+  
+  if (headerRowIndex === -1) {
+    throw new Error('Could not find the header row with IBERIA ICON column');
+  }
+  
+  // Find column indices
   const cardNumberIndex = headers.findIndex(h => 
-    h.includes('iberia') || h.includes('card') || h.includes('numero')
+    h.includes('iberia') && h.includes('icon')
   );
   const dateIndex = headers.findIndex(h => 
-    h.includes('fecha') || h.includes('date')
+    h.includes('fecha') || (h.includes('date') && !h.includes('value'))
   );
   const merchantIndex = headers.findIndex(h => 
     h.includes('comercio') || h.includes('merchant') || h.includes('descripcion')
   );
   const amountIndex = headers.findIndex(h => 
-    h.includes('importe') && h.includes('euro') || 
-    h.includes('amount') || 
-    h.includes('euros')
+    h.includes('importe') && h.includes('euro')
   );
+
+  if (cardNumberIndex === -1 || dateIndex === -1 || merchantIndex === -1 || amountIndex === -1) {
+    throw new Error('Could not find all required columns in the file');
+  }
 
   const processedExpenses: ExpenseData[] = [];
 
-  for (let i = 1; i < lines.length; i++) {
-    const cells = lines[i].split(/[,;\t]/).map(c => c.trim().replace(/"/g, ''));
+  // Start processing from the row after headers
+  for (let i = headerRowIndex + 1; i < data.length; i++) {
+    const row = data[i];
     
-    if (cells.length < Math.max(cardNumberIndex, dateIndex, merchantIndex, amountIndex) + 1) {
-      continue; // Skip malformed rows
-    }
+    if (!row || row.length === 0) continue;
+    
+    const cardNumber = String(row[cardNumberIndex] || '').trim();
+    const rawDate = String(row[dateIndex] || '').trim();
+    const merchant = String(row[merchantIndex] || '').trim();
+    const rawAmount = String(row[amountIndex] || '').trim();
 
-    const cardNumber = cells[cardNumberIndex] || '';
-    const rawDate = cells[dateIndex] || '';
-    const merchant = cells[merchantIndex] || '';
-    const rawAmount = cells[amountIndex] || '';
-
-    if (!merchant || !rawAmount) {
-      continue; // Skip rows without essential data
+    // Skip empty rows or rows without essential data
+    if (!merchant || !rawAmount || merchant === 'undefined' || rawAmount === 'undefined') {
+      continue;
     }
 
     // Format date to YYYY-MM-DD
