@@ -23,64 +23,68 @@ export const processExpenseFile = async (file: File): Promise<ExpenseData[]> => 
     throw new Error('File appears to be empty or invalid');
   }
 
-  // Find the header row (look for "IBERIA ICON" column)
-  let headerRowIndex = -1;
-  let headers: string[] = [];
+  // Find the card number (look for IBERIA ICON row)
+  let cardNumber = '';
+  for (let i = 0; i < Math.min(50, data.length); i++) {
+    const row = data[i];
+    if (row && row.length > 2) {
+      const cellValue = String(row[0] || '').toUpperCase();
+      if (cellValue.includes('IBERIA') && cellValue.includes('ICON') && row[2]) {
+        cardNumber = String(row[2]).trim();
+        break;
+      }
+    }
+  }
   
-  for (let i = 0; i < Math.min(10, data.length); i++) {
-    const row = data[i].map((cell: any) => String(cell || '').toLowerCase());
-    if (row.some(cell => cell.includes('iberia') && cell.includes('icon'))) {
-      headerRowIndex = i;
-      headers = row;
-      break;
+  // Find the transaction header row (look for "FECHA OPERACIÓN", "COMERCIO", "IMPORTE EUROS")
+  let headerRowIndex = -1;
+  for (let i = 0; i < Math.min(50, data.length); i++) {
+    const row = data[i];
+    if (row && row.length >= 5) {
+      const rowStr = row.map((cell: any) => String(cell || '').toLowerCase()).join('|');
+      if (rowStr.includes('fecha') && rowStr.includes('operación') && 
+          rowStr.includes('comercio') && rowStr.includes('importe') && rowStr.includes('euros')) {
+        headerRowIndex = i;
+        break;
+      }
     }
   }
   
   if (headerRowIndex === -1) {
-    throw new Error('Could not find the header row with IBERIA ICON column');
-  }
-  
-  // Find column indices
-  const cardNumberIndex = headers.findIndex(h => 
-    h.includes('iberia') && h.includes('icon')
-  );
-  const dateIndex = headers.findIndex(h => 
-    h.includes('fecha') || (h.includes('date') && !h.includes('value'))
-  );
-  const merchantIndex = headers.findIndex(h => 
-    h.includes('comercio') || h.includes('merchant') || h.includes('descripcion')
-  );
-  const amountIndex = headers.findIndex(h => 
-    h.includes('importe') && h.includes('euro')
-  );
-
-  if (cardNumberIndex === -1 || dateIndex === -1 || merchantIndex === -1 || amountIndex === -1) {
-    throw new Error('Could not find all required columns in the file');
+    throw new Error('Could not find the transaction data table in the file');
   }
 
   const processedExpenses: ExpenseData[] = [];
 
-  // Start processing from the row after headers
+  // Process transactions starting from the row after header
   for (let i = headerRowIndex + 1; i < data.length; i++) {
     const row = data[i];
     
-    if (!row || row.length === 0) continue;
+    if (!row || row.length < 5) continue;
     
-    const cardNumber = String(row[cardNumberIndex] || '').trim();
-    const rawDate = String(row[dateIndex] || '').trim();
-    const merchant = String(row[merchantIndex] || '').trim();
-    const rawAmount = String(row[amountIndex] || '').trim();
+    // Expected format: [Nº, FECHA OPERACIÓN, COMERCIO, IMPORTE DIVISA, IMPORTE EUROS, ...]
+    const transactionNumber = String(row[0] || '').trim();
+    const rawDate = String(row[1] || '').trim();
+    const merchant = String(row[2] || '').trim();
+    const rawAmount = String(row[4] || '').trim(); // IMPORTE EUROS column
 
     // Skip empty rows or rows without essential data
-    if (!merchant || !rawAmount || merchant === 'undefined' || rawAmount === 'undefined') {
+    if (!merchant || !rawDate || !rawAmount || 
+        merchant === 'undefined' || rawAmount === 'undefined' ||
+        !transactionNumber.match(/^\d+$/)) {
       continue;
     }
 
     // Format date to YYYY-MM-DD
     const formattedDate = formatDate(rawDate);
     
-    // Clean and format amount
+    // Clean and format amount (remove currency symbols, keep numbers and decimal separators)
     const cleanAmount = rawAmount.replace(/[^\d,.-]/g, '');
+    
+    // Skip if no valid amount
+    if (!cleanAmount || cleanAmount === '0' || cleanAmount === '0.00') {
+      continue;
+    }
     
     // Categorize the transaction
     const category = categorizeTransaction(merchant);
@@ -92,6 +96,10 @@ export const processExpenseFile = async (file: File): Promise<ExpenseData[]> => 
       importe: cleanAmount,
       categoria: category,
     });
+  }
+
+  if (processedExpenses.length === 0) {
+    throw new Error('No valid transactions found in the file');
   }
 
   return processedExpenses;
