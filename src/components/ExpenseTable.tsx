@@ -390,13 +390,8 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                       style={{ backgroundColor: getPieChartCategoryColor(expense.categoria) }}
                     />
                     <Badge 
-                      variant="outline" 
-                      className="text-xs border-gray-300"
-                      style={{ 
-                        backgroundColor: `${getPieChartCategoryColor(expense.categoria)}20`,
-                        borderColor: getPieChartCategoryColor(expense.categoria),
-                        color: getPieChartCategoryColor(expense.categoria)
-                      }}
+                      variant="secondary" 
+                      className="text-xs"
                     >
                       {expense.categoria}
                     </Badge>
