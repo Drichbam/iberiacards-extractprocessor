@@ -64,7 +64,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
       expenses
         .filter(expense => expense.categoria === "Otros gastos (otros)")
         .map(expense => expense.comercio)
-    )];
+    )].sort();
     
     const shopsList = otherShops.join('\n');
     navigator.clipboard.writeText(shopsList);
