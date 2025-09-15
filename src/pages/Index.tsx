@@ -40,9 +40,17 @@ const Index = () => {
       <div className="container max-w-7xl mx-auto px-6 py-6">
         {/* Header */}
         <header className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            Credit Card Expense Categorizer
-          </h1>
+          <div className="flex justify-center items-center gap-4 mb-4">
+            <h1 className="text-3xl font-bold text-foreground mb-2">
+              Credit Card Expense Categorizer
+            </h1>
+            <a 
+              href="/shop-categories"
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+            >
+              Manage Shop Categories
+            </a>
+          </div>
           <p className="text-lg text-foreground/80 max-w-2xl mx-auto font-medium">
             Upload your monthly credit card extract and get organized, categorized expenses ready for export
           </p>
