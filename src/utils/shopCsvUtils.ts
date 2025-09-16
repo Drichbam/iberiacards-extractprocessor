@@ -1,4 +1,9 @@
-import { Shop, CreateShopRequest, SHOP_CATEGORIES } from '@/types/shop';
+import { Shop } from '@/types/shop';
+
+export interface ShopCSVData {
+  shop_name: string;
+  category_name: string;
+}
 
 export const exportShopsToCSV = (shops: Shop[]) => {
   // CSV headers
@@ -34,7 +39,7 @@ export const exportShopsToCSV = (shops: Shop[]) => {
   URL.revokeObjectURL(url);
 };
 
-export const parseShopsFromCSV = (csvContent: string): CreateShopRequest[] => {
+export const parseShopsFromCSV = (csvContent: string): ShopCSVData[] => {
   const lines = csvContent.split('\n').filter(line => line.trim());
   
   if (lines.length === 0) {
@@ -43,7 +48,7 @@ export const parseShopsFromCSV = (csvContent: string): CreateShopRequest[] => {
 
   // Skip header row
   const dataLines = lines.slice(1);
-  const shops: CreateShopRequest[] = [];
+  const shops: ShopCSVData[] = [];
   const errors: string[] = [];
 
   dataLines.forEach((line, index) => {
@@ -73,15 +78,9 @@ export const parseShopsFromCSV = (csvContent: string): CreateShopRequest[] => {
         return;
       }
 
-      // Validate category against allowed values
-      if (!SHOP_CATEGORIES.includes(category as any)) {
-        errors.push(`Line ${lineNumber}: Invalid category "${category}". Allowed categories: ${SHOP_CATEGORIES.join(', ')}`);
-        return;
-      }
-
       shops.push({
         shop_name: shopName,
-        category_id: category, // This will need to be resolved to category ID in the actual implementation
+        category_name: category, // Store category name, will be resolved to ID later
       });
     } catch (error) {
       errors.push(`Line ${lineNumber}: Failed to parse - ${error instanceof Error ? error.message : 'Unknown error'}`);

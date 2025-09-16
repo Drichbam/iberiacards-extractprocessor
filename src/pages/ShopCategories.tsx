@@ -8,21 +8,24 @@ import { Plus, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Download, Upload, 
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useShops } from '@/hooks/useShops';
+import { useCategories } from '@/hooks/useCategories';
 import { ShopForm } from '@/components/ShopForm';
 import { DeleteConfirmationDialog } from '@/components/DeleteConfirmationDialog';
 import { DeleteAllConfirmationDialog } from '@/components/DeleteAllConfirmationDialog';
 import { ImportConfirmationDialog } from '@/components/ImportConfirmationDialog';
 import { ShopFiltersComponent, type ShopFilters } from '@/components/ShopFilters';
-import { Shop } from '@/types/shop';
-import { exportShopsToCSV, parseShopsFromCSV } from '@/utils/shopCsvUtils';
+import { Shop, CreateShopRequest } from '@/types/shop';
+import { exportShopsToCSV, parseShopsFromCSV, ShopCSVData } from '@/utils/shopCsvUtils';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
+import { supabase } from '@/integrations/supabase/client';
 
 type SortField = 'shop_name' | 'category' | 'created_at' | 'modified_at';
 type SortDirection = 'asc' | 'desc';
 
 export default function ShopCategories() {
   const { shops, loading, createShop, updateShop, deleteShop } = useShops();
+  const { categories, createCategory, refetch: refetchCategories } = useCategories();
   const { toast } = useToast();
   const navigate = useNavigate();
   
@@ -208,11 +211,47 @@ export default function ShopCategories() {
     }
   };
 
+  // Helper function to resolve category names to IDs, creating missing categories
+  const resolveCategoryId = async (categoryName: string): Promise<string> => {
+    // Find existing category
+    let existingCategory = categories.find(cat => cat.name === categoryName);
+    if (existingCategory) {
+      return existingCategory.id;
+    }
+
+    // Create new category with random color
+    const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899'];
+    const usedColors = categories.map(cat => cat.color);
+    const availableColors = colors.filter(color => !usedColors.includes(color));
+    const randomColor = availableColors.length > 0 
+      ? availableColors[Math.floor(Math.random() * availableColors.length)]
+      : colors[Math.floor(Math.random() * colors.length)];
+
+    const success = await createCategory({
+      name: categoryName,
+      color: randomColor,
+    });
+
+    if (success) {
+      // Refetch categories to get the updated list
+      await refetchCategories();
+      
+      // Now find the newly created category from the updated categories list
+      // We need to access the updated categories, so let's fetch them directly
+      const { data } = await supabase.from('categories').select('*').eq('name', categoryName).single();
+      if (data) {
+        return data.id;
+      }
+    }
+
+    throw new Error(`Failed to create category: ${categoryName}`);
+  };
+
   const performImport = async (file: File) => {
     setIsImporting(true);
     try {
       const text = await file.text();
-      const newShops = parseShopsFromCSV(text);
+      const csvShops = parseShopsFromCSV(text);
 
       // Delete all existing shops first (if any)
       if (shops.length > 0) {
@@ -220,17 +259,44 @@ export default function ShopCategories() {
         await Promise.all(deletePromises);
       }
 
+      // Resolve category names to IDs, creating missing categories
+      const shopDataWithIds: CreateShopRequest[] = [];
+      const createdCategories: string[] = [];
+
+      for (const csvShop of csvShops) {
+        try {
+          const categoryId = await resolveCategoryId(csvShop.category_name);
+          shopDataWithIds.push({
+            shop_name: csvShop.shop_name,
+            category_id: categoryId,
+          });
+
+          // Track if this was a new category
+          if (!categories.find(cat => cat.name === csvShop.category_name)) {
+            createdCategories.push(csvShop.category_name);
+          }
+        } catch (error) {
+          throw new Error(`Failed to resolve category "${csvShop.category_name}": ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+
       // Create new shops
-      const createPromises = newShops.map(shopData => createShop(shopData));
+      const createPromises = shopDataWithIds.map(shopData => createShop(shopData));
       const results = await Promise.all(createPromises);
       
       const successCount = results.filter(result => result).length;
       
+      let description = shops.length === 0 
+        ? `${successCount} shops imported successfully.`
+        : `${successCount} shops imported successfully. All previous entries were replaced.`;
+      
+      if (createdCategories.length > 0) {
+        description += ` Created ${createdCategories.length} new categories: ${createdCategories.join(', ')}.`;
+      }
+      
       toast({
         title: "Import Complete",
-        description: shops.length === 0 
-          ? `${successCount} shops imported successfully.`
-          : `${successCount} shops imported successfully. All previous entries were replaced.`,
+        description,
         variant: "success",
       });
     } catch (error) {
