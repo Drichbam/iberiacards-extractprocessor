@@ -15,7 +15,7 @@ export const useShops = () => {
         .from('shops')
         .select(`
           *,
-          categories (
+          categories!category_id (
             name,
             color
           )
@@ -50,7 +50,7 @@ export const useShops = () => {
         .insert([shopData])
         .select(`
           *,
-          categories (
+          categories!category_id (
             name,
             color
           )
@@ -100,7 +100,7 @@ export const useShops = () => {
         .eq('id', id)
         .select(`
           *,
-          categories (
+          categories!category_id (
             name,
             color
           )

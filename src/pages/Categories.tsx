@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ArrowLeft, Plus, Download, Upload, Trash2, Edit, ChevronUp, ChevronDown } from "lucide-react";
+import { ArrowLeft, Plus, Download, Trash2, Edit, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,8 +11,6 @@ import { CategoryForm } from "@/components/CategoryForm";
 import { CategoryFilters } from "@/components/CategoryFilters";
 import { DeleteConfirmationDialog } from "@/components/DeleteConfirmationDialog";
 import { DeleteAllConfirmationDialog } from "@/components/DeleteAllConfirmationDialog";
-import { ImportConfirmationDialog } from "@/components/ImportConfirmationDialog";
-import { FileUpload } from "@/components/FileUpload";
 import { Category } from "@/types/category";
 
 type SortField = 'name' | 'color' | 'created_at';
@@ -30,10 +28,6 @@ const Categories = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<{ id: string; name: string } | null>(null);
   const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
-  
-  // Import state
-  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
-  const [importData, setImportData] = useState<any[]>([]);
   
   // Filter and sort state
   const [searchTerm, setSearchTerm] = useState("");
@@ -126,21 +120,6 @@ const Categories = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  const handleImportCSV = (data: any[]) => {
-    setImportData(data);
-    setIsImportDialogOpen(true);
-  };
-
-  const performImport = async () => {
-    // Implementation would go here
-    setIsImportDialogOpen(false);
-    setImportData([]);
-  };
-
-  const confirmImport = () => {
-    performImport();
-  };
-
   const SortButton = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
     <Button variant="ghost" onClick={() => handleSort(field)} className="h-auto p-0 font-semibold hover:bg-transparent">
       <div className="flex items-center gap-1">
@@ -181,11 +160,6 @@ const Categories = () => {
               <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={categories.length === 0}>
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
-              </Button>
-              <FileUpload onFileUpload={handleImportCSV} isProcessing={false} />
-              <Button variant="outline" size="sm">
-                <Upload className="h-4 w-4 mr-2" />
-                Import CSV
               </Button>
               <Button onClick={handleCreateCategory}>
                 <Plus className="h-4 w-4 mr-2" />
@@ -306,14 +280,6 @@ const Categories = () => {
           }
         }}
         shopName={categoryToDelete?.name || ""}
-      />
-
-      <ImportConfirmationDialog
-        isOpen={isImportDialogOpen}
-        onClose={() => setIsImportDialogOpen(false)}
-        onConfirm={confirmImport}
-        fileName="categories.csv"
-        currentShopCount={categories.length}
       />
 
       <DeleteAllConfirmationDialog
