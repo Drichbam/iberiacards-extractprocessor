@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Download, Upload } from 'lucide-react';
+import { Plus, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Download, Upload, Settings } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useShops } from '@/hooks/useShops';
 import { ShopForm } from '@/components/ShopForm';
@@ -275,6 +276,10 @@ export default function ShopCategories() {
           <Button variant="outline" onClick={handleExportCSV} disabled={shops.length === 0}>
             <Download className="mr-2 h-4 w-4" />
             Export CSV
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/categories')}>
+            <Settings className="mr-2 h-4 w-4" />
+            Manage Categories
           </Button>
           <div className="relative">
             <Input

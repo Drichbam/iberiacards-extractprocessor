@@ -4,7 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { SHOP_CATEGORIES, CreateShopRequest, UpdateShopRequest, Shop } from '@/types/shop';
+import { CreateShopRequest, UpdateShopRequest, Shop } from '@/types/shop';
+import { useCategories } from '@/hooks/useCategories';
 
 interface ShopFormProps {
   isOpen: boolean;
@@ -16,26 +17,27 @@ interface ShopFormProps {
 
 export const ShopForm = ({ isOpen, onClose, onSubmit, initialData, mode }: ShopFormProps) => {
   const [shopName, setShopName] = useState(initialData?.shop_name || '');
-  const [category, setCategory] = useState(initialData?.category || '');
+  const [categoryId, setCategoryId] = useState(initialData?.category_id || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { categories } = useCategories();
 
   // Update form state when initialData changes
   useEffect(() => {
     if (isOpen) {
       setShopName(initialData?.shop_name || '');
-      setCategory(initialData?.category || '');
+      setCategoryId(initialData?.category_id || '');
       setIsSubmitting(false);
     }
   }, [isOpen, initialData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!shopName.trim() || !category) return;
+    if (!shopName.trim() || !categoryId) return;
 
     setIsSubmitting(true);
     const success = await onSubmit({
       shop_name: shopName.trim(),
-      category,
+      category_id: categoryId,
     });
     
     if (success) {
@@ -46,12 +48,12 @@ export const ShopForm = ({ isOpen, onClose, onSubmit, initialData, mode }: ShopF
 
   const handleClose = () => {
     setShopName(initialData?.shop_name || '');
-    setCategory(initialData?.category || '');
+    setCategoryId(initialData?.category_id || '');
     setIsSubmitting(false);
     onClose();
   };
 
-  const isValid = shopName.trim().length > 0 && category.length > 0;
+  const isValid = shopName.trim().length > 0 && categoryId.length > 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -84,19 +86,19 @@ export const ShopForm = ({ isOpen, onClose, onSubmit, initialData, mode }: ShopF
 
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className={!category ? 'border-destructive' : ''}>
+            <Select value={categoryId} onValueChange={setCategoryId}>
+              <SelectTrigger className={!categoryId ? 'border-destructive' : ''}>
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent className="bg-background border shadow-md z-50">
-                {SHOP_CATEGORIES.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat}
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {!category && (
+            {!categoryId && (
               <p className="text-sm text-destructive">Category is required</p>
             )}
           </div>

@@ -1,19 +1,20 @@
 export interface Shop {
   id: string;
   shop_name: string;
-  category: string;
+  category_id: string;
+  category?: string; // For backwards compatibility with joined data
   created_at: string;
   modified_at: string;
 }
 
 export interface CreateShopRequest {
   shop_name: string;
-  category: string;
+  category_id: string;
 }
 
 export interface UpdateShopRequest {
   shop_name: string;
-  category: string;
+  category_id: string;
 }
 
 export const SHOP_CATEGORIES = [

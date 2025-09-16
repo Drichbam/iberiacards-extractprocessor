@@ -81,7 +81,7 @@ export const parseShopsFromCSV = (csvContent: string): CreateShopRequest[] => {
 
       shops.push({
         shop_name: shopName,
-        category: category,
+        category_id: category, // This will need to be resolved to category ID in the actual implementation
       });
     } catch (error) {
       errors.push(`Line ${lineNumber}: Failed to parse - ${error instanceof Error ? error.message : 'Unknown error'}`);

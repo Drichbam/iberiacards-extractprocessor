@@ -14,29 +14,61 @@ export type Database = {
   }
   public: {
     Tables: {
+      categories: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          modified_at: string
+          name: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          modified_at?: string
+          name: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          modified_at?: string
+          name?: string
+        }
+        Relationships: []
+      }
       shops: {
         Row: {
-          category: string
+          category_id: string | null
           created_at: string
           id: string
           modified_at: string
           shop_name: string
         }
         Insert: {
-          category: string
+          category_id?: string | null
           created_at?: string
           id?: string
           modified_at?: string
           shop_name: string
         }
         Update: {
-          category?: string
+          category_id?: string | null
           created_at?: string
           id?: string
           modified_at?: string
           shop_name?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "shops_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
