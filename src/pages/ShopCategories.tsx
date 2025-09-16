@@ -24,6 +24,7 @@ type SortDirection = 'asc' | 'desc';
 export default function ShopCategories() {
   const { shops, loading, createShop, updateShop, deleteShop } = useShops();
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   // Form state
   const [showForm, setShowForm] = useState(false);
