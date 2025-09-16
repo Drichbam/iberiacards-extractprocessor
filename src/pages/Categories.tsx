@@ -99,11 +99,10 @@ const Categories = () => {
 
   const handleExportCSV = () => {
     const csvContent = [
-      ['Name', 'Color', 'Created At'],
+      ['Name', 'Color'],
       ...categories.map(category => [
         category.name,
-        category.color,
-        new Date(category.created_at).toLocaleDateString()
+        category.color
       ])
     ];
 
