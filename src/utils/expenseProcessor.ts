@@ -14,14 +14,28 @@ export interface ExpenseProcessingResult {
 const fetchShops = async (): Promise<Shop[]> => {
   const { data: shops, error } = await supabase
     .from('shops')
-    .select('*');
+    .select(`
+      *,
+      categories!category_id (
+        name,
+        color
+      )
+    `);
     
   if (error) {
     console.error('Error fetching shops:', error);
     return [];
   }
   
-  return shops || [];
+  // Transform the data to include category name for backwards compatibility
+  const transformedShops = shops?.map(shop => ({
+    ...shop,
+    category: (shop as any).categories?.name || 'Uncategorized'
+  })) || [];
+  
+  console.log('Fetched shops for expense processing:', transformedShops.length, transformedShops.slice(0, 3));
+  
+  return transformedShops;
 };
 
 export const processMultipleExpenseFiles = async (files: File[]): Promise<ExpenseProcessingResult> => {
@@ -201,7 +215,14 @@ export const processExpenseFile = async (file: File, shops?: Shop[]): Promise<Ex
       
       // Categorize the transaction using shops database (exact match, case sensitive)
       const matchedShop = shops.find(shop => shop.shop_name === merchant);
-      const category = matchedShop ? matchedShop.category : 'Otros gastos (otros)';
+      const category = matchedShop?.category || 'Otros gastos (otros)';
+      
+      // Debug logging for categorization issues
+      if (!matchedShop && merchant && merchant !== 'undefined') {
+        console.log(`No shop match found for merchant: "${merchant}"`);
+      } else if (matchedShop && !matchedShop.category) {
+        console.log(`Shop found but no category: "${merchant}" -> shop:`, matchedShop);
+      }
 
       allExpenses.push({
         card_number: cardNumber,
