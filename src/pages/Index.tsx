@@ -1,12 +1,87 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FileUpload } from "@/components/FileUpload";
 import { ExpenseTable } from "@/components/ExpenseTable";
 import { processExpenseFile, processMultipleExpenseFiles, ExpenseProcessingResult } from "@/utils/expenseProcessor";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Shop } from "@/types/shop";
 
 const Index = () => {
   const [processingResult, setProcessingResult] = useState<ExpenseProcessingResult | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [shops, setShops] = useState<Shop[]>([]);
+
+  // Fetch initial shops data
+  const fetchShops = async () => {
+    const { data, error } = await supabase
+      .from('shops')
+      .select('*');
+    
+    if (error) {
+      console.error('Error fetching shops:', error);
+      return;
+    }
+    
+    setShops(data || []);
+  };
+
+  // Re-categorize expenses when shops change
+  const recategorizeExpenses = (expenses: any[], updatedShops: Shop[]) => {
+    return expenses.map(expense => {
+      const matchedShop = updatedShops.find(shop => shop.shop_name === expense.comercio);
+      return {
+        ...expense,
+        categoria: matchedShop ? matchedShop.category : 'Otros gastos (otros)'
+      };
+    });
+  };
+
+  useEffect(() => {
+    // Fetch initial shops data
+    fetchShops();
+
+    // Set up real-time subscription for shops changes
+    const channel = supabase
+      .channel('shops-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'shops'
+        },
+        async (payload) => {
+          console.log('Shop change detected:', payload);
+          
+          // Refetch shops data and get the updated shops
+          const { data: updatedShops, error } = await supabase
+            .from('shops')
+            .select('*');
+          
+          if (error) {
+            console.error('Error fetching updated shops:', error);
+            return;
+          }
+          
+          const newShops = updatedShops || [];
+          setShops(newShops);
+          
+          // Re-categorize existing expenses if we have processing results
+          if (processingResult) {
+            const updatedExpenses = recategorizeExpenses(processingResult.expenses, newShops);
+            setProcessingResult({
+              ...processingResult,
+              expenses: updatedExpenses
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [processingResult]); // Remove shops from dependencies to avoid infinite loop
 
   const handleFileUpload = async (files: File[]) => {
     setIsProcessing(true);
