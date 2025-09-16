@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, ChevronUp, ChevronDown, CheckCircle, AlertTriangle, Copy, Filter } from "lucide-react";
 import { ExpenseData } from "@/types/expense";
+import { Category } from "@/types/category";
 import { exportToCSV } from "@/utils/csvExporter";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -16,12 +17,13 @@ interface ExpenseTableProps {
   calculatedTotal: number;
   expectedTotal: number;
   totalMatch: boolean;
+  categories: Category[];
 }
 
 type SortField = keyof ExpenseData;
 type SortDirection = 'asc' | 'desc';
 
-export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMatch }: ExpenseTableProps) => {
+export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMatch, categories }: ExpenseTableProps) => {
   const [sortField, setSortField] = useState<SortField>('fecha');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -97,39 +99,21 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
   };
 
   const getCategoryColor = (categoria: string) => {
-    const categoryColors: Record<string, string> = {
-      'Food & Dining': 'bg-orange-100 text-orange-800',
-      'Transportation': 'bg-blue-100 text-blue-800',
-      'Shopping': 'bg-purple-100 text-purple-800',
-      'Entertainment': 'bg-pink-100 text-pink-800',
-      'Health & Medical': 'bg-green-100 text-green-800',
-      'Travel': 'bg-cyan-100 text-cyan-800',
-      'Bills & Utilities': 'bg-red-100 text-red-800',
-      'Education': 'bg-indigo-100 text-indigo-800',
-      'Other': 'bg-gray-100 text-gray-800',
-    };
-    
-    return categoryColors[categoria] || categoryColors['Other'];
+    const category = categories.find(cat => cat.name === categoria);
+    if (category) {
+      // Generate light background and darker text based on category color
+      return `bg-[${category.color}20] text-[${category.color}] border-[${category.color}40]`;
+    }
+    return 'bg-gray-100 text-gray-800 border-gray-300';
+  };
+
+  const getCategoryHexColor = (categoria: string) => {
+    const category = categories.find(cat => cat.name === categoria);
+    return category?.color || '#6b7280'; // Default gray
   };
 
   const getPieChartCategoryColor = (categoria: string) => {
-    const categoryTotals = expenses.reduce((acc, expense) => {
-      const amount = parseFloat(expense.importe.replace(',', '.')) || 0;
-      acc[expense.categoria] = (acc[expense.categoria] || 0) + amount;
-      return acc;
-    }, {} as Record<string, number>);
-    
-    const sortedCategories = Object.entries(categoryTotals)
-      .sort(([,a], [,b]) => b - a)
-      .map(([category]) => category);
-    
-    const COLORS = [
-      '#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00', 
-      '#ff00ff', '#00ffff', '#ffff00', '#ff0000', '#0000ff'
-    ];
-    
-    const categoryIndex = sortedCategories.indexOf(categoria);
-    return categoryIndex >= 0 ? COLORS[categoryIndex % COLORS.length] : '#8884d8';
+    return getCategoryHexColor(categoria);
   };
 
   const SortButton = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
@@ -234,11 +218,10 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
               };
             });
 
-          // Colors for pie chart
-          const COLORS = [
-            '#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00', 
-            '#ff00ff', '#00ffff', '#ffff00', '#ff0000', '#0000ff'
-          ];
+          // Use actual category colors for pie chart
+          const getCategoryColorForPie = (categoryName: string) => {
+            return getCategoryHexColor(categoryName);
+          };
           
           return (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -261,7 +244,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                           <TableCell className="w-12">
                             <div 
                               className="w-4 h-4 rounded-sm border border-gray-300" 
-                              style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                              style={{ backgroundColor: getCategoryColorForPie(item.name) }}
                             />
                           </TableCell>
                           <TableCell>
@@ -306,7 +289,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                         labelLine={false}
                       >
                         {categoryData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          <Cell key={`cell-${index}`} fill={getCategoryColorForPie(entry.name)} />
                         ))}
                       </Pie>
                       <Tooltip 
@@ -415,7 +398,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                             <div className="flex items-center gap-2">
                               <div 
                                 className="w-2 h-2 rounded-sm border border-gray-300" 
-                                style={{ backgroundColor: getPieChartCategoryColor(category) }}
+                                style={{ backgroundColor: getCategoryHexColor(category) }}
                               />
                               <span className="truncate max-w-[120px]">{category}</span>
                             </div>

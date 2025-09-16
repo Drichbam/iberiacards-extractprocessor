@@ -5,24 +5,39 @@ import { processExpenseFile, processMultipleExpenseFiles, ExpenseProcessingResul
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Shop } from "@/types/shop";
+import { Category } from "@/types/category";
 
 const Index = () => {
   const [processingResult, setProcessingResult] = useState<ExpenseProcessingResult | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [shops, setShops] = useState<Shop[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
-  // Fetch initial shops data
+  // Fetch initial shops data with categories
   const fetchShops = async () => {
-    const { data, error } = await supabase
+    const { data: shops, error } = await supabase
       .from('shops')
-      .select('*');
+      .select(`
+        *,
+        categories!category_id (
+          name,
+          color
+        )
+      `);
     
     if (error) {
       console.error('Error fetching shops:', error);
       return;
     }
     
-    setShops(data || []);
+    // Transform the data to include category name and color for backwards compatibility
+    const transformedShops = shops?.map(shop => ({
+      ...shop,
+      category: (shop as any).categories?.name || 'Uncategorized',
+      categoryColor: (shop as any).categories?.color || '#6366f1'
+    })) || [];
+    
+    setShops(transformedShops);
   };
 
   // Re-categorize expenses when shops change
@@ -36,9 +51,25 @@ const Index = () => {
     });
   };
 
+  // Fetch categories
+  const fetchCategories = async () => {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .order('name');
+    
+    if (error) {
+      console.error('Error fetching categories:', error);
+      return;
+    }
+    
+    setCategories(data || []);
+  };
+
   useEffect(() => {
-    // Fetch initial shops data
+    // Fetch initial data
     fetchShops();
+    fetchCategories();
 
     // Set up real-time subscription for shops changes
     const channel = supabase
@@ -53,22 +84,34 @@ const Index = () => {
         async (payload) => {
           console.log('Shop change detected:', payload);
           
-          // Refetch shops data and get the updated shops
+          // Refetch shops data with categories
           const { data: updatedShops, error } = await supabase
             .from('shops')
-            .select('*');
+            .select(`
+              *,
+              categories!category_id (
+                name,
+                color
+              )
+            `);
           
           if (error) {
             console.error('Error fetching updated shops:', error);
             return;
           }
           
-          const newShops = updatedShops || [];
-          setShops(newShops);
+          // Transform the data to include category name and color
+          const transformedShops = updatedShops?.map(shop => ({
+            ...shop,
+            category: (shop as any).categories?.name || 'Uncategorized',
+            categoryColor: (shop as any).categories?.color || '#6366f1'
+          })) || [];
+          
+          setShops(transformedShops);
           
           // Re-categorize existing expenses if we have processing results
           if (processingResult) {
-            const updatedExpenses = recategorizeExpenses(processingResult.expenses, newShops);
+            const updatedExpenses = recategorizeExpenses(processingResult.expenses, transformedShops);
             setProcessingResult({
               ...processingResult,
               expenses: updatedExpenses
@@ -146,6 +189,7 @@ const Index = () => {
               calculatedTotal={processingResult.calculatedTotal}
               expectedTotal={processingResult.expectedTotal}
               totalMatch={processingResult.totalMatch}
+              categories={categories}
             />
           </section>
         )}
