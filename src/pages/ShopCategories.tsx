@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { useShops } from '@/hooks/useShops';
 import { ShopForm } from '@/components/ShopForm';
 import { DeleteConfirmationDialog } from '@/components/DeleteConfirmationDialog';
+import { DeleteAllConfirmationDialog } from '@/components/DeleteAllConfirmationDialog';
 import { ImportConfirmationDialog } from '@/components/ImportConfirmationDialog';
 import { ShopFiltersComponent, type ShopFilters } from '@/components/ShopFilters';
 import { Shop } from '@/types/shop';
@@ -31,6 +32,7 @@ export default function ShopCategories() {
   // Delete state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deletingShop, setDeletingShop] = useState<Shop | undefined>();
+  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   
   // Import state
   const [isImporting, setIsImporting] = useState(false);
@@ -145,6 +147,21 @@ export default function ShopCategories() {
     }
   };
 
+  const handleDeleteAll = () => {
+    setShowDeleteAllDialog(true);
+  };
+
+  const confirmDeleteAll = async () => {
+    const deletePromises = shops.map(shop => deleteShop(shop.id, shop.shop_name));
+    await Promise.all(deletePromises);
+    
+    toast({
+      title: "All Entries Deleted",
+      description: `${shops.length} shop entries have been deleted`,
+      variant: "success",
+    });
+  };
+
   const handleFormSubmit = async (data: any) => {
     if (formMode === 'create') {
       return await createShop(data);
@@ -239,6 +256,10 @@ export default function ShopCategories() {
           <p className="text-muted-foreground">Manage shop names and their spending categories</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={handleDeleteAll} disabled={shops.length === 0} className="text-destructive hover:text-destructive">
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete All
+          </Button>
           <Button variant="outline" onClick={handleExportCSV} disabled={shops.length === 0}>
             <Download className="mr-2 h-4 w-4" />
             Export CSV
@@ -379,6 +400,13 @@ export default function ShopCategories() {
         onConfirm={confirmImport}
         fileName={importFile?.name || ''}
         currentShopCount={shops.length}
+      />
+
+      <DeleteAllConfirmationDialog
+        isOpen={showDeleteAllDialog}
+        onClose={() => setShowDeleteAllDialog(false)}
+        onConfirm={confirmDeleteAll}
+        shopCount={shops.length}
       />
     </div>
   );
