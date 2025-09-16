@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, X } from 'lucide-react';
+import { CalendarIcon, X, ChevronDown, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { SHOP_CATEGORIES } from '@/types/shop';
 import { cn } from '@/lib/utils';
@@ -81,20 +81,58 @@ export const ShopFiltersComponent = ({ filters, onFiltersChange }: ShopFiltersPr
       {/* Category Filter */}
       <div className="space-y-2">
         <Label>Categories</Label>
-        <div className="grid grid-cols-2 gap-2">
-          {SHOP_CATEGORIES.map((category) => (
-            <div key={category} className="flex items-center space-x-2">
-              <Checkbox
-                id={category}
-                checked={filters.categoryFilters.includes(category)}
-                onCheckedChange={() => toggleCategory(category)}
-              />
-              <Label htmlFor={category} className="text-sm">
-                {category}
-              </Label>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className="w-full justify-between text-left font-normal"
+            >
+              <span className="truncate">
+                {filters.categoryFilters.length === 0
+                  ? "Select categories"
+                  : filters.categoryFilters.length === 1
+                  ? filters.categoryFilters[0]
+                  : `${filters.categoryFilters.length} selected`}
+              </span>
+              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 p-0 bg-popover border shadow-md z-50" align="start">
+            <div className="max-h-60 overflow-auto">
+              <div className="p-2 space-y-1">
+                {SHOP_CATEGORIES.map((category) => (
+                  <div
+                    key={category}
+                    className="flex items-center space-x-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                    onClick={() => toggleCategory(category)}
+                  >
+                    <Checkbox
+                      checked={filters.categoryFilters.includes(category)}
+                      onChange={() => {}} 
+                      className="pointer-events-none"
+                    />
+                    <span className="flex-1 truncate">{category}</span>
+                    {filters.categoryFilters.includes(category) && (
+                      <Check className="h-4 w-4 text-primary" />
+                    )}
+                  </div>
+                ))}
+              </div>
+              {filters.categoryFilters.length > 0 && (
+                <div className="border-t px-2 py-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => updateFilter('categoryFilters', [])}
+                    className="w-full justify-center text-sm"
+                  >
+                    Clear selection
+                  </Button>
+                </div>
+              )}
             </div>
-          ))}
-        </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Date Filters */}
