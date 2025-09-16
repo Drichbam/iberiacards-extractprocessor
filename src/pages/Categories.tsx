@@ -335,7 +335,7 @@ const Categories = () => {
               </CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="destructive" size="sm" onClick={() => setIsDeleteAllDialogOpen(true)} disabled={categories.length === 0}>
+              <Button variant="destructive" size="sm" onClick={() => setIsDeleteAllDialogOpen(true)} disabled={categories.filter(cat => cat.name !== 'Uncategorized').length === 0}>
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete All
               </Button>
@@ -494,10 +494,37 @@ const Categories = () => {
         isOpen={isDeleteAllDialogOpen}
         onClose={() => setIsDeleteAllDialogOpen(false)}
         onConfirm={async () => {
-          // Implementation would go here
-          setIsDeleteAllDialogOpen(false);
+          try {
+            // Delete all categories except "Uncategorized"
+            const categoriesToDelete = categories.filter(cat => cat.name !== 'Uncategorized');
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const category of categoriesToDelete) {
+              const success = await deleteCategory(category.id, category.name);
+              if (success) {
+                successCount++;
+              } else {
+                errorCount++;
+              }
+            }
+
+            toast({
+              title: "Delete All Complete",
+              description: `${successCount} categories deleted successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}`,
+              variant: successCount > 0 ? "success" : "destructive",
+            });
+          } catch (error) {
+            toast({
+              title: "Error",
+              description: "Failed to delete categories",
+              variant: "destructive",
+            });
+          } finally {
+            setIsDeleteAllDialogOpen(false);
+          }
         }}
-        shopCount={categories.length}
+        shopCount={categories.filter(cat => cat.name !== 'Uncategorized').length}
       />
     </div>
   );
