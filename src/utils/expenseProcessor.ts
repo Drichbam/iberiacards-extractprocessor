@@ -213,41 +213,13 @@ export const processExpenseFile = async (file: File, shops?: Shop[]): Promise<Ex
       const numericAmount = parseFloat(cleanAmount.replace(',', '.')) || 0;
       calculatedTotal += numericAmount;
       
-      // Normalize function to handle character encoding issues
-      const normalizeString = (str: string): string => {
-        return str
-          .normalize('NFD') // Decompose characters
-          .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
-          .toLowerCase()
-          .trim();
-      };
-
-      // First try exact match (case sensitive)
-      let matchedShop = shops.find(shop => shop.shop_name === merchant);
-      
-      // If no exact match, try normalized matching for character encoding issues
-      if (!matchedShop) {
-        const normalizedMerchant = normalizeString(merchant);
-        matchedShop = shops.find(shop => normalizeString(shop.shop_name) === normalizedMerchant);
-        
-        if (matchedShop) {
-          console.log(`Character encoding match found: "${merchant}" -> "${matchedShop.shop_name}"`);
-        }
-      }
-      
+      // Categorize the transaction using shops database (exact match, case sensitive)
+      const matchedShop = shops.find(shop => shop.shop_name === merchant);
       const category = matchedShop?.category || 'Otros gastos (otros)';
       
       // Debug logging for categorization issues
       if (!matchedShop && merchant && merchant !== 'undefined') {
         console.log(`No shop match found for merchant: "${merchant}"`);
-        // Show similar merchants for debugging
-        const similar = shops.filter(shop => 
-          shop.shop_name.toLowerCase().includes(merchant.toLowerCase().substring(0, 10)) ||
-          normalizeString(shop.shop_name).includes(normalizeString(merchant).substring(0, 10))
-        );
-        if (similar.length > 0) {
-          console.log(`Similar merchants found:`, similar.slice(0, 3).map(s => s.shop_name));
-        }
       } else if (matchedShop && !matchedShop.category) {
         console.log(`Shop found but no category: "${merchant}" -> shop:`, matchedShop);
       }
