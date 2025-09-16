@@ -31,7 +31,7 @@ export const CategoryForm = ({ open, onOpenChange, onSubmit, category, title, de
     resolver: zodResolver(categoryFormSchema),
     defaultValues: {
       name: "",
-      color: "#6366f1",
+      color: "hsl(var(--primary))",
     },
   });
 
@@ -87,7 +87,7 @@ export const CategoryForm = ({ open, onOpenChange, onSubmit, category, title, de
                         className="w-12 h-10 p-1 rounded cursor-pointer"
                       />
                       <Input 
-                        placeholder="#6366f1" 
+                        placeholder="hsl(var(--primary))" 
                         {...field}
                         className="flex-1"
                       />

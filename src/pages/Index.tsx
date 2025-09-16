@@ -34,7 +34,7 @@ const Index = () => {
     const transformedShops = shops?.map(shop => ({
       ...shop,
       category: (shop as any).categories?.name || 'Uncategorized',
-      categoryColor: (shop as any).categories?.color || '#6366f1'
+      categoryColor: (shop as any).categories?.color || 'hsl(var(--primary))'
     })) || [];
     
     setShops(transformedShops);
@@ -104,7 +104,7 @@ const Index = () => {
           const transformedShops = updatedShops?.map(shop => ({
             ...shop,
             category: (shop as any).categories?.name || 'Uncategorized',
-            categoryColor: (shop as any).categories?.color || '#6366f1'
+            categoryColor: (shop as any).categories?.color || 'hsl(var(--primary))'
           })) || [];
           
           setShops(transformedShops);

@@ -104,12 +104,12 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
       // Generate light background and darker text based on category color
       return `bg-[${category.color}20] text-[${category.color}] border-[${category.color}40]`;
     }
-    return 'bg-gray-100 text-gray-800 border-gray-300';
+    return 'bg-muted text-muted-foreground border-border';
   };
 
   const getCategoryHexColor = (categoria: string) => {
     const category = categories.find(cat => cat.name === categoria);
-    return category?.color || '#6b7280'; // Default gray
+    return category?.color || 'hsl(var(--muted-foreground))'; // Default using design system
   };
 
   const getPieChartCategoryColor = (categoria: string) => {
@@ -165,9 +165,9 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
       <div className="mb-6 p-4 rounded-lg border bg-muted/30">
         <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
           {totalMatch ? (
-            <CheckCircle className="h-5 w-5 text-green-600" />
+            <CheckCircle className="h-5 w-5 text-success" />
           ) : (
-            <AlertTriangle className="h-5 w-5 text-orange-600" />
+            <AlertTriangle className="h-5 w-5 text-warning" />
           )}
           Total Verification
         </h3>
@@ -182,7 +182,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
           </div>
           <div>
             <span className="text-muted-foreground">Status:</span>
-            <p className={cn("font-semibold", totalMatch ? "text-green-600" : "text-orange-600")}>
+            <p className={cn("font-semibold", totalMatch ? "text-success" : "text-warning")}>
               {totalMatch ? "✓ Match" : "⚠ Difference"}
             </p>
             {!totalMatch && (
@@ -243,7 +243,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                         <TableRow key={item.name} className="hover:bg-muted/30">
                           <TableCell className="w-12">
                             <div 
-                              className="w-4 h-4 rounded-sm border border-gray-300" 
+                              className="w-4 h-4 rounded-sm border border-border" 
                               style={{ backgroundColor: getCategoryColorForPie(item.name) }}
                             />
                           </TableCell>
@@ -280,7 +280,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                         cy="50%"
                         outerRadius={100}
                         innerRadius={40}
-                        fill="#8884d8"
+                        fill="hsl(var(--primary))"
                         dataKey="value"
                         label={({ percentage, index }) => {
                           if (percentage < 5) return '';
@@ -397,7 +397,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                           <SelectItem key={category} value={category}>
                             <div className="flex items-center gap-2">
                               <div 
-                                className="w-2 h-2 rounded-sm border border-gray-300" 
+                                className="w-2 h-2 rounded-sm border border-border" 
                                 style={{ backgroundColor: getCategoryHexColor(category) }}
                               />
                               <span className="truncate max-w-[120px]">{category}</span>
@@ -428,7 +428,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <div 
-                      className="w-3 h-3 rounded-sm border border-gray-300" 
+                      className="w-3 h-3 rounded-sm border border-border" 
                       style={{ backgroundColor: getPieChartCategoryColor(expense.categoria) }}
                     />
                     <Badge 
