@@ -1,5 +1,6 @@
 import { ExpenseData } from "@/types/expense";
-import { categorizeTransaction } from "./merchantCategorizer";
+import { supabase } from "@/integrations/supabase/client";
+import { Shop } from "@/types/shop";
 import * as XLSX from 'xlsx';
 
 export interface ExpenseProcessingResult {
@@ -9,10 +10,27 @@ export interface ExpenseProcessingResult {
   totalMatch: boolean;
 }
 
+// Fetch shops once and reuse
+const fetchShops = async (): Promise<Shop[]> => {
+  const { data: shops, error } = await supabase
+    .from('shops')
+    .select('*');
+    
+  if (error) {
+    console.error('Error fetching shops:', error);
+    return [];
+  }
+  
+  return shops || [];
+};
+
 export const processMultipleExpenseFiles = async (files: File[]): Promise<ExpenseProcessingResult> => {
   if (files.length === 0) {
     throw new Error('No files provided for processing');
   }
+  
+  // Fetch shops once for all files
+  const shops = await fetchShops();
   
   const results: ExpenseProcessingResult[] = [];
   const errorFiles: string[] = [];
@@ -20,7 +38,7 @@ export const processMultipleExpenseFiles = async (files: File[]): Promise<Expens
   // Process each file individually
   for (const file of files) {
     try {
-      const result = await processExpenseFile(file);
+      const result = await processExpenseFile(file, shops);
       results.push(result);
     } catch (error) {
       errorFiles.push(file.name);
@@ -59,7 +77,11 @@ export const processMultipleExpenseFiles = async (files: File[]): Promise<Expens
   };
 };
 
-export const processExpenseFile = async (file: File): Promise<ExpenseProcessingResult> => {
+export const processExpenseFile = async (file: File, shops?: Shop[]): Promise<ExpenseProcessingResult> => {
+  // Fetch shops if not provided
+  if (!shops) {
+    shops = await fetchShops();
+  }
   let data: any[][];
   
   if (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')) {
@@ -177,8 +199,9 @@ export const processExpenseFile = async (file: File): Promise<ExpenseProcessingR
       const numericAmount = parseFloat(cleanAmount.replace(',', '.')) || 0;
       calculatedTotal += numericAmount;
       
-      // Categorize the transaction
-      const category = categorizeTransaction(merchant);
+      // Categorize the transaction using shops database (exact match, case sensitive)
+      const matchedShop = shops.find(shop => shop.shop_name === merchant);
+      const category = matchedShop ? matchedShop.category : 'Otros gastos (otros)';
 
       allExpenses.push({
         card_number: cardNumber,

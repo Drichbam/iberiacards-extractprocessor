@@ -46,6 +46,8 @@ const Index = () => {
             </h1>
             <a 
               href="/shop-categories"
+              target="_blank"
+              rel="noopener noreferrer"
               className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
             >
               Manage Shop Categories
