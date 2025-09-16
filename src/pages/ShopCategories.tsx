@@ -196,22 +196,27 @@ export default function ShopCategories() {
       return;
     }
 
-    // Store the file and show confirmation dialog
-    setImportFile(file);
-    setShowImportDialog(true);
+    // If no existing shops, proceed directly with import
+    if (shops.length === 0) {
+      await performImport(file);
+    } else {
+      // Store the file and show confirmation dialog
+      setImportFile(file);
+      setShowImportDialog(true);
+    }
   };
 
-  const confirmImport = async () => {
-    if (!importFile) return;
-
+  const performImport = async (file: File) => {
     setIsImporting(true);
     try {
-      const text = await importFile.text();
+      const text = await file.text();
       const newShops = parseShopsFromCSV(text);
 
-      // Delete all existing shops first
-      const deletePromises = shops.map(shop => deleteShop(shop.id, shop.shop_name));
-      await Promise.all(deletePromises);
+      // Delete all existing shops first (if any)
+      if (shops.length > 0) {
+        const deletePromises = shops.map(shop => deleteShop(shop.id, shop.shop_name));
+        await Promise.all(deletePromises);
+      }
 
       // Create new shops
       const createPromises = newShops.map(shopData => createShop(shopData));
@@ -221,7 +226,9 @@ export default function ShopCategories() {
       
       toast({
         title: "Import Complete",
-        description: `${successCount} shops imported successfully. All previous entries were replaced.`,
+        description: shops.length === 0 
+          ? `${successCount} shops imported successfully.`
+          : `${successCount} shops imported successfully. All previous entries were replaced.`,
         variant: "success",
       });
     } catch (error) {
@@ -235,6 +242,11 @@ export default function ShopCategories() {
       setIsImporting(false);
       setImportFile(null);
     }
+  };
+
+  const confirmImport = async () => {
+    if (!importFile) return;
+    await performImport(importFile);
   };
 
   const SortButton = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
