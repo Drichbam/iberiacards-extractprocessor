@@ -227,24 +227,42 @@ export default function ShopCategories() {
       ? availableColors[Math.floor(Math.random() * availableColors.length)]
       : colors[Math.floor(Math.random() * colors.length)];
 
-    const success = await createCategory({
-      name: categoryName,
-      color: randomColor,
-    });
+    // Create category directly in database and return the result
+    const { data, error } = await supabase
+      .from('categories')
+      .insert([{
+        name: categoryName,
+        color: randomColor,
+      }])
+      .select()
+      .single();
 
-    if (success) {
-      // Refetch categories to get the updated list
-      await refetchCategories();
-      
-      // Now find the newly created category from the updated categories list
-      // We need to access the updated categories, so let's fetch them directly
-      const { data } = await supabase.from('categories').select('*').eq('name', categoryName).single();
-      if (data) {
-        return data.id;
+    if (error) {
+      if (error.code === '23505') {
+        // Category already exists, fetch it
+        const { data: existingData, error: fetchError } = await supabase
+          .from('categories')
+          .select('*')
+          .eq('name', categoryName)
+          .single();
+        
+        if (fetchError) {
+          throw new Error(`Failed to fetch existing category "${categoryName}": ${fetchError.message}`);
+        }
+        
+        return existingData.id;
       }
+      throw new Error(`Failed to create category "${categoryName}": ${error.message}`);
     }
 
-    throw new Error(`Failed to create category: ${categoryName}`);
+    if (!data) {
+      throw new Error(`Failed to create category: ${categoryName}`);
+    }
+
+    // Update local categories state
+    await refetchCategories();
+
+    return data.id;
   };
 
   const performImport = async (file: File) => {
@@ -259,25 +277,73 @@ export default function ShopCategories() {
         await Promise.all(deletePromises);
       }
 
-      // Resolve category names to IDs, creating missing categories
-      const shopDataWithIds: CreateShopRequest[] = [];
+      // Get all unique category names from CSV
+      const uniqueCategoryNames = [...new Set(csvShops.map(shop => shop.category_name))];
       const createdCategories: string[] = [];
 
-      for (const csvShop of csvShops) {
-        try {
-          const categoryId = await resolveCategoryId(csvShop.category_name);
-          shopDataWithIds.push({
-            shop_name: csvShop.shop_name,
-            category_id: categoryId,
-          });
+      // Pre-create all missing categories to avoid race conditions
+      for (const categoryName of uniqueCategoryNames) {
+        const existingCategory = categories.find(cat => cat.name === categoryName);
+        if (!existingCategory) {
+          try {
+            const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899'];
+            const usedColors = categories.map(cat => cat.color);
+            const availableColors = colors.filter(color => !usedColors.includes(color));
+            const randomColor = availableColors.length > 0 
+              ? availableColors[Math.floor(Math.random() * availableColors.length)]
+              : colors[Math.floor(Math.random() * colors.length)];
 
-          // Track if this was a new category
-          if (!categories.find(cat => cat.name === csvShop.category_name)) {
-            createdCategories.push(csvShop.category_name);
+            const { data, error } = await supabase
+              .from('categories')
+              .insert([{
+                name: categoryName,
+                color: randomColor,
+              }])
+              .select()
+              .single();
+
+            if (error && error.code !== '23505') { // Ignore duplicate errors
+              throw error;
+            }
+
+            if (data || error.code === '23505') {
+              createdCategories.push(categoryName);
+            }
+          } catch (error) {
+            console.warn(`Failed to create category "${categoryName}":`, error);
           }
-        } catch (error) {
-          throw new Error(`Failed to resolve category "${csvShop.category_name}": ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
+      }
+
+      // Refetch categories to get all current categories including newly created ones
+      await refetchCategories();
+      
+      // Wait a bit for the refetch to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Get updated categories from the database to ensure we have the latest data
+      const { data: updatedCategories, error: fetchError } = await supabase
+        .from('categories')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (fetchError) {
+        throw new Error(`Failed to fetch updated categories: ${fetchError.message}`);
+      }
+
+      // Map shop data to include category IDs
+      const shopDataWithIds: CreateShopRequest[] = [];
+      
+      for (const csvShop of csvShops) {
+        const category = updatedCategories?.find(cat => cat.name === csvShop.category_name);
+        if (!category) {
+          throw new Error(`Category "${csvShop.category_name}" not found after creation`);
+        }
+
+        shopDataWithIds.push({
+          shop_name: csvShop.shop_name,
+          category_id: category.id,
+        });
       }
 
       // Create new shops
