@@ -1,5 +1,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -27,10 +28,20 @@ export const CategoryForm = ({ open, onOpenChange, onSubmit, category, title, de
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(categoryFormSchema),
     defaultValues: {
-      name: category?.name || "",
-      color: category?.color || "#6366f1",
+      name: "",
+      color: "#6366f1",
     },
   });
+
+  // Reset form values when category changes or dialog opens
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        name: category?.name || "",
+        color: category?.color || "#6366f1",
+      });
+    }
+  }, [open, category, form]);
 
   const handleSubmit = async (values: CategoryFormValues) => {
     await onSubmit(values);
