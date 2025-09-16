@@ -4,14 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Filter } from 'lucide-react';
+import { Plus, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { useShops } from '@/hooks/useShops';
 import { ShopForm } from '@/components/ShopForm';
 import { DeleteConfirmationDialog } from '@/components/DeleteConfirmationDialog';
 import { ShopFiltersComponent, type ShopFilters } from '@/components/ShopFilters';
-import { Shop, SHOP_CATEGORIES } from '@/types/shop';
+import { Shop } from '@/types/shop';
 
 type SortField = 'shop_name' | 'category' | 'created_at' | 'modified_at';
 type SortDirection = 'asc' | 'desc';
@@ -42,9 +41,6 @@ export default function ShopCategories() {
     modifiedToDate: null,
   });
 
-  // Category filter state for dropdown
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-
   // Filtering and sorting logic
   const filteredAndSortedShops = useMemo(() => {
     let filtered = shops;
@@ -60,11 +56,6 @@ export default function ShopCategories() {
           shop.shop_name.toLowerCase().includes(filters.shopNameFilter.toLowerCase())
         );
       }
-    }
-
-    // Apply category filter from dropdown
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(shop => shop.category === selectedCategory);
     }
 
     if (filters.categoryFilters.length > 0) {
@@ -109,7 +100,7 @@ export default function ShopCategories() {
       if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [shops, filters, sortField, sortDirection, selectedCategory]);
+  }, [shops, filters, sortField, sortDirection]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -207,25 +198,7 @@ export default function ShopCategories() {
                           <SortButton field="shop_name">Shop Name</SortButton>
                         </TableHead>
                         <TableHead>
-                          <div className="flex items-center space-x-2">
-                            <SortButton field="category">Category</SortButton>
-                            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                              <SelectTrigger className="w-[140px] h-8">
-                                <div className="flex items-center">
-                                  <Filter className="h-3 w-3 mr-1" />
-                                  <SelectValue />
-                                </div>
-                              </SelectTrigger>
-                              <SelectContent className="bg-background border shadow-md z-50">
-                                <SelectItem value="all">All Categories</SelectItem>
-                                {SHOP_CATEGORIES.map((category) => (
-                                  <SelectItem key={category} value={category}>
-                                    {category}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
+                          <SortButton field="category">Category</SortButton>
                         </TableHead>
                         <TableHead>
                           <SortButton field="created_at">Created On</SortButton>
