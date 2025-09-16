@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { useShops } from '@/hooks/useShops';
 import { ShopForm } from '@/components/ShopForm';
 import { DeleteConfirmationDialog } from '@/components/DeleteConfirmationDialog';
+import { ImportConfirmationDialog } from '@/components/ImportConfirmationDialog';
 import { ShopFiltersComponent, type ShopFilters } from '@/components/ShopFilters';
 import { Shop } from '@/types/shop';
 import { exportShopsToCSV, parseShopsFromCSV } from '@/utils/shopCsvUtils';
@@ -33,6 +34,8 @@ export default function ShopCategories() {
   
   // Import state
   const [isImporting, setIsImporting] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
   
   // Sorting state
   const [sortField, setSortField] = useState<SortField>('shop_name');
@@ -176,9 +179,17 @@ export default function ShopCategories() {
       return;
     }
 
+    // Store the file and show confirmation dialog
+    setImportFile(file);
+    setShowImportDialog(true);
+  };
+
+  const confirmImport = async () => {
+    if (!importFile) return;
+
     setIsImporting(true);
     try {
-      const text = await file.text();
+      const text = await importFile.text();
       const newShops = parseShopsFromCSV(text);
 
       // Delete all existing shops first
@@ -205,6 +216,7 @@ export default function ShopCategories() {
       });
     } finally {
       setIsImporting(false);
+      setImportFile(null);
     }
   };
 
@@ -356,6 +368,17 @@ export default function ShopCategories() {
         onClose={() => setShowDeleteDialog(false)}
         onConfirm={confirmDelete}
         shopName={deletingShop?.shop_name || ''}
+      />
+
+      <ImportConfirmationDialog
+        isOpen={showImportDialog}
+        onClose={() => {
+          setShowImportDialog(false);
+          setImportFile(null);
+        }}
+        onConfirm={confirmImport}
+        fileName={importFile?.name || ''}
+        currentShopCount={shops.length}
       />
     </div>
   );
