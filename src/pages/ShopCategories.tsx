@@ -4,19 +4,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Download, Upload } from 'lucide-react';
 import { format } from 'date-fns';
 import { useShops } from '@/hooks/useShops';
 import { ShopForm } from '@/components/ShopForm';
 import { DeleteConfirmationDialog } from '@/components/DeleteConfirmationDialog';
 import { ShopFiltersComponent, type ShopFilters } from '@/components/ShopFilters';
 import { Shop } from '@/types/shop';
+import { exportShopsToCSV, parseShopsFromCSV } from '@/utils/shopCsvUtils';
+import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input';
 
 type SortField = 'shop_name' | 'category' | 'created_at' | 'modified_at';
 type SortDirection = 'asc' | 'desc';
 
 export default function ShopCategories() {
   const { shops, loading, createShop, updateShop, deleteShop } = useShops();
+  const { toast } = useToast();
   
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -26,6 +30,9 @@ export default function ShopCategories() {
   // Delete state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deletingShop, setDeletingShop] = useState<Shop | undefined>();
+  
+  // Import state
+  const [isImporting, setIsImporting] = useState(false);
   
   // Sorting state
   const [sortField, setSortField] = useState<SortField>('shop_name');
@@ -144,6 +151,63 @@ export default function ShopCategories() {
     return false;
   };
 
+  const handleExportCSV = () => {
+    exportShopsToCSV(shops);
+    toast({
+      title: "Export Complete",
+      description: `${shops.length} shops exported to CSV`,
+      variant: "success",
+    });
+  };
+
+  const handleImportCSV = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Reset the input value so the same file can be selected again
+    event.target.value = '';
+
+    if (!file.name.endsWith('.csv')) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please select a CSV file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      const text = await file.text();
+      const newShops = parseShopsFromCSV(text);
+
+      // Delete all existing shops first
+      const deletePromises = shops.map(shop => deleteShop(shop.id, shop.shop_name));
+      await Promise.all(deletePromises);
+
+      // Create new shops
+      const createPromises = newShops.map(shopData => createShop(shopData));
+      const results = await Promise.all(createPromises);
+      
+      const successCount = results.filter(result => result).length;
+      
+      toast({
+        title: "Import Complete",
+        description: `${successCount} shops imported successfully. All previous entries were replaced.`,
+        variant: "success",
+      });
+    } catch (error) {
+      console.error('Import error:', error);
+      toast({
+        title: "Import Failed",
+        description: error instanceof Error ? error.message : "Failed to import CSV file",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const SortButton = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
     <Button variant="ghost" onClick={() => handleSort(field)} className="h-auto p-0 font-medium">
       {children}
@@ -162,10 +226,30 @@ export default function ShopCategories() {
           <h1 className="text-3xl font-bold">Shop Categories</h1>
           <p className="text-muted-foreground">Manage shop names and their spending categories</p>
         </div>
-        <Button onClick={handleCreateShop}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Entry
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExportCSV} disabled={shops.length === 0}>
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
+          </Button>
+          <div className="relative">
+            <Input
+              type="file"
+              accept=".csv"
+              onChange={handleImportCSV}
+              disabled={isImporting}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              aria-label="Import CSV file"
+            />
+            <Button variant="outline" disabled={isImporting}>
+              <Upload className="mr-2 h-4 w-4" />
+              {isImporting ? 'Importing...' : 'Import CSV'}
+            </Button>
+          </div>
+          <Button onClick={handleCreateShop}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Entry
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
