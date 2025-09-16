@@ -14,6 +14,7 @@ import { DeleteAllConfirmationDialog } from "@/components/DeleteAllConfirmationD
 import { ImportConfirmationDialog } from "@/components/ImportConfirmationDialog";
 import { Category } from "@/types/category";
 import { useToast } from "@/hooks/use-toast";
+import { DistinctColorGenerator } from "@/utils/colorUtils";
 
 type SortField = 'name' | 'color' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -126,8 +127,9 @@ const Categories = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  // Generate random colors without repetition
+  // Generate random colors without repetition - DEPRECATED: Use DistinctColorGenerator instead
   const generateRandomColors = (count: number): string[] => {
+    console.warn('generateRandomColors is deprecated. Use DistinctColorGenerator instead.');
     const colors = [
       '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e',
       '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1',
@@ -198,8 +200,9 @@ const Categories = () => {
         const headerLine = parseCSVLine(lines[0]);
         const hasColorColumn = headerLine.length > 1 && headerLine[1]?.toLowerCase().includes('color');
         
-        // Generate random colors if needed
-        const randomColors = hasColorColumn ? [] : generateRandomColors(dataLines.length);
+        // Generate distinct colors if needed
+        const existingColors = categories.map(cat => cat.color);
+        const newColors = hasColorColumn ? [] : DistinctColorGenerator.generateMultipleDistinctColors(dataLines.length, existingColors);
         let colorIndex = 0;
 
         dataLines.forEach((line, index) => {
@@ -215,7 +218,7 @@ const Categories = () => {
               return;
             }
 
-            let color = '#6366f1'; // default color
+            let color = DistinctColorGenerator.getNextCategoryColor(categories); // default distinct color
             
             if (hasColorColumn && values[1]) {
               const colorValue = values[1].trim();
@@ -225,8 +228,8 @@ const Categories = () => {
               } else {
                 errors.push(`Line ${lineNumber}: Invalid color format "${colorValue}". Using default color.`);
               }
-            } else if (!hasColorColumn && randomColors.length > 0) {
-              color = randomColors[colorIndex % randomColors.length];
+            } else if (!hasColorColumn && newColors.length > 0) {
+              color = newColors[colorIndex % newColors.length];
               colorIndex++;
             }
 
@@ -465,6 +468,7 @@ const Categories = () => {
         category={editingCategory}
         title={editingCategory ? "Edit Category" : "Create New Category"}
         description={editingCategory ? "Update the category details below." : "Add a new category to organize your expenses."}
+        existingCategories={categories}
       />
 
       <DeleteConfirmationDialog

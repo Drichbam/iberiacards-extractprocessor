@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Category } from "@/types/category";
+import { DistinctColorGenerator } from "@/utils/colorUtils";
 
 const categoryFormSchema = z.object({
   name: z.string().min(1, "Category name is required").max(100, "Category name must not exceed 100 characters"),
@@ -22,9 +23,10 @@ interface CategoryFormProps {
   category?: Category;
   title: string;
   description: string;
+  existingCategories?: Category[];
 }
 
-export const CategoryForm = ({ open, onOpenChange, onSubmit, category, title, description }: CategoryFormProps) => {
+export const CategoryForm = ({ open, onOpenChange, onSubmit, category, title, description, existingCategories = [] }: CategoryFormProps) => {
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(categoryFormSchema),
     defaultValues: {
@@ -36,12 +38,13 @@ export const CategoryForm = ({ open, onOpenChange, onSubmit, category, title, de
   // Reset form values when category changes or dialog opens
   useEffect(() => {
     if (open) {
+      const defaultColor = category?.color || DistinctColorGenerator.getNextCategoryColor(existingCategories);
       form.reset({
         name: category?.name || "",
-        color: category?.color || "#6366f1",
+        color: defaultColor,
       });
     }
-  }, [open, category, form]);
+  }, [open, category, form, existingCategories]);
 
   const handleSubmit = async (values: CategoryFormValues) => {
     await onSubmit(values);

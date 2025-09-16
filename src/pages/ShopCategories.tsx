@@ -19,6 +19,7 @@ import { exportShopsToCSV, parseShopsFromCSV, ShopCSVData } from '@/utils/shopCs
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
+import { DistinctColorGenerator } from '@/utils/colorUtils';
 
 type SortField = 'shop_name' | 'category' | 'created_at' | 'modified_at';
 type SortDirection = 'asc' | 'desc';
@@ -219,13 +220,8 @@ export default function ShopCategories() {
       return existingCategory.id;
     }
 
-    // Create new category with random color
-    const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899'];
-    const usedColors = categories.map(cat => cat.color);
-    const availableColors = colors.filter(color => !usedColors.includes(color));
-    const randomColor = availableColors.length > 0 
-      ? availableColors[Math.floor(Math.random() * availableColors.length)]
-      : colors[Math.floor(Math.random() * colors.length)];
+    // Create new category with distinct color
+    const randomColor = DistinctColorGenerator.getNextCategoryColor(categories);
 
     // Create category directly in database and return the result
     const { data, error } = await supabase
@@ -282,22 +278,24 @@ export default function ShopCategories() {
       const createdCategories: string[] = [];
 
       // Pre-create all missing categories to avoid race conditions
+      const existingColors = categories.map(cat => cat.color);
+      const newCategoryColors = DistinctColorGenerator.generateMultipleDistinctColors(
+        uniqueCategoryNames.filter(name => !categories.find(cat => cat.name === name)).length,
+        existingColors
+      );
+      let colorIndex = 0;
+
       for (const categoryName of uniqueCategoryNames) {
         const existingCategory = categories.find(cat => cat.name === categoryName);
         if (!existingCategory) {
           try {
-            const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899'];
-            const usedColors = categories.map(cat => cat.color);
-            const availableColors = colors.filter(color => !usedColors.includes(color));
-            const randomColor = availableColors.length > 0 
-              ? availableColors[Math.floor(Math.random() * availableColors.length)]
-              : colors[Math.floor(Math.random() * colors.length)];
+            const color = newCategoryColors[colorIndex++] || DistinctColorGenerator.getNextCategoryColor(categories);
 
             const { data, error } = await supabase
               .from('categories')
               .insert([{
                 name: categoryName,
-                color: randomColor,
+                color: color,
               }])
               .select()
               .single();
