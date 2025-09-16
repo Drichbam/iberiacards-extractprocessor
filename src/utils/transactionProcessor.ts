@@ -42,7 +42,7 @@ export const processCardTransactions = (
       // Skip if not a valid transaction row
       if (!merchant || !rawDate || !rawAmount || 
           merchant === 'undefined' || rawAmount === 'undefined' ||
-          !transactionNumber.match(/^\\d+$/)) {
+          !transactionNumber.match(/^\d+$/)) {
         continue;
       }
 
@@ -50,7 +50,7 @@ export const processCardTransactions = (
       const formattedDate = formatDate(rawDate);
       
       // Clean and format amount (remove currency symbols, keep numbers and decimal separators)
-      const cleanAmount = rawAmount.replace(/[^\\d,.-]/g, '');
+      const cleanAmount = rawAmount.replace(/[^\d,.-]/g, '');
       
       // Skip if no valid amount
       if (!cleanAmount || cleanAmount === '0' || cleanAmount === '0.00') {
