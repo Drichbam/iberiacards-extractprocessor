@@ -21,7 +21,7 @@ const Index = () => {
       toast({
         title: "Processing Complete",
         description: `${result.expenses.length} transactions processed from ${files.length} file(s). ${statusMessage}`,
-        variant: result.totalMatch ? "default" : "destructive"
+        variant: result.totalMatch ? "success" : "default"
       });
     } catch (error) {
       console.error("Error processing files:", error);

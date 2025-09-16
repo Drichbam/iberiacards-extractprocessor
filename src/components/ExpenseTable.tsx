@@ -78,6 +78,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
     toast({
       title: "Copied to clipboard",
       description: `${otherShops.length} unique shops copied`,
+      variant: "success",
     });
   };
 
@@ -91,6 +92,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
     toast({
       title: "Merchants copied to clipboard",
       description: `${uniqueMerchants.length} unique merchants copied`,
+      variant: "success",
     });
   };
 

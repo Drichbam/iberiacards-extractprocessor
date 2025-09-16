@@ -54,6 +54,7 @@ export const useShops = () => {
       toast({
         title: "Success",
         description: "Shop added successfully",
+        variant: "success",
       });
       return true;
     } catch (error) {
@@ -95,6 +96,7 @@ export const useShops = () => {
       toast({
         title: "Success",
         description: "Shop updated successfully",
+        variant: "success",
       });
       return true;
     } catch (error) {
@@ -121,6 +123,7 @@ export const useShops = () => {
       toast({
         title: "Success",
         description: `"${shopName}" deleted successfully`,
+        variant: "success",
       });
       return true;
     } catch (error) {
