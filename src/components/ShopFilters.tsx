@@ -78,24 +78,6 @@ export const ShopFiltersComponent = ({ filters, onFiltersChange }: ShopFiltersPr
         />
       </div>
 
-      {/* Category Filter */}
-      <div className="space-y-2">
-        <Label>Categories</Label>
-        <div className="grid grid-cols-2 gap-2">
-          {SHOP_CATEGORIES.map((category) => (
-            <div key={category} className="flex items-center space-x-2">
-              <Checkbox
-                id={category}
-                checked={filters.categoryFilters.includes(category)}
-                onCheckedChange={() => toggleCategory(category)}
-              />
-              <Label htmlFor={category} className="text-sm">
-                {category}
-              </Label>
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* Date Filters */}
       <div className="grid grid-cols-2 gap-4">
