@@ -2,16 +2,20 @@ import { ExpenseData } from "@/types/expense";
 
 export const exportToCSV = (expenses: ExpenseData[]) => {
   // CSV headers
-  const headers = ['card_number', 'Fecha', 'Comercio', 'IMPORTE', 'Subcategoria'];
+  const headers = ['Fecha', 'Cantidad', 'Moneda', 'Descripción', 'Título', 'Receptor', 'Uso', 'Categoría', 'Subcategoría'];
   
   // Create CSV content
   const csvContent = [
     headers.join(','),
     ...expenses.map(expense => [
-      `"${expense.card_number}"`,
       `"${expense.fecha}"`,
-      `"${expense.comercio}"`,
       `"${expense.importe}"`,
+      `"EUR"`,
+      `""`,
+      `"Iberia Card ${expense.card_number.slice(-4)}"`,
+      `"${expense.comercio}"`,
+      `""`,
+      `"Compras"`,
       `"${expense.categoria}"`
     ].join(','))
   ].join('\n');
