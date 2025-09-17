@@ -1,117 +1,198 @@
 import { useState, useMemo } from "react";
-import { ArrowLeft, Plus, Download, Upload, Trash2, Edit, ChevronUp, ChevronDown } from "lucide-react";
+import { ArrowLeft, Plus, Download, Upload, Trash2, Edit, ChevronRight, FolderOpen, Folder, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useNavigate } from "react-router-dom";
 import { useCategories } from "@/hooks/useCategories";
+import { useSubcategories } from "@/hooks/useSubcategories";
 import { CategoryForm } from "@/components/CategoryForm";
+import { SubcategoryForm } from "@/components/SubcategoryForm";
 import { CategoryFilters } from "@/components/CategoryFilters";
 import { DeleteConfirmationDialog } from "@/components/DeleteConfirmationDialog";
 import { DeleteAllConfirmationDialog } from "@/components/DeleteAllConfirmationDialog";
 import { ImportConfirmationDialog } from "@/components/ImportConfirmationDialog";
 import { Category } from "@/types/category";
+import { Subcategory } from "@/types/subcategory";
 import { useToast } from "@/hooks/use-toast";
 import { DistinctColorGenerator } from "@/utils/colorUtils";
-
-type SortField = 'name' | 'color' | 'created_at';
-type SortDirection = 'asc' | 'desc';
 
 const Categories = () => {
   const navigate = useNavigate();
   const { categories, loading, createCategory, updateCategory, deleteCategory } = useCategories();
+  const { subcategoriesWithCategories, createSubcategory, updateSubcategory, deleteSubcategory } = useSubcategories();
   const { toast } = useToast();
   
-  // Form state
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  // Form state for categories
+  const [isCategoryFormOpen, setIsCategoryFormOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | undefined>();
+  
+  // Form state for subcategories
+  const [isSubcategoryFormOpen, setIsSubcategoryFormOpen] = useState(false);
+  const [editingSubcategory, setEditingSubcategory] = useState<Subcategory | undefined>();
+  const [defaultCategoryId, setDefaultCategoryId] = useState<string>('');
   
   // Delete state
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [categoryToDelete, setCategoryToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{ id: string; name: string; type: 'category' | 'subcategory' } | null>(null);
   const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
   
   // Import state
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importData, setImportData] = useState<any[]>([]);
   
-  // Filter and sort state
+  // Filter and UI state
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortField, setSortField] = useState<SortField>('name');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
-  const filteredAndSortedCategories = useMemo(() => {
-    let filtered = categories.filter(category =>
-      category.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    filtered.sort((a, b) => {
-      let aValue: string | number = a[sortField];
-      let bValue: string | number = b[sortField];
+  // Group subcategories by category with counts
+  const groupedData = useMemo(() => {
+    const grouped = categories.reduce((acc, category) => {
+      const categorySubcategories = subcategoriesWithCategories.filter(sub => sub.category_id === category.id);
+      const totalShops = categorySubcategories.reduce((sum, sub) => sum + (sub.shopCount || 0), 0);
       
-      if (sortField === 'created_at') {
-        const aTime = new Date(aValue as string).getTime();
-        const bTime = new Date(bValue as string).getTime();
-        return sortDirection === 'asc' ? aTime - bTime : bTime - aTime;
-      } else {
-        const aStr = String(aValue).toLowerCase();
-        const bStr = String(bValue).toLowerCase();
-        if (aStr < bStr) return sortDirection === 'asc' ? -1 : 1;
-        if (aStr > bStr) return sortDirection === 'asc' ? 1 : -1;
-        return 0;
+      acc[category.id] = {
+        category,
+        subcategories: categorySubcategories,
+        subcategoryCount: categorySubcategories.length,
+        shopCount: totalShops,
+      };
+      return acc;
+    }, {} as Record<string, { 
+      category: Category; 
+      subcategories: typeof subcategoriesWithCategories; 
+      subcategoryCount: number;
+      shopCount: number;
+    }>);
+    
+    return grouped;
+  }, [categories, subcategoriesWithCategories]);
+
+  // Filter categories and subcategories based on search
+  const filteredData = useMemo(() => {
+    if (!searchTerm) return groupedData;
+    
+    const filtered: typeof groupedData = {};
+    Object.entries(groupedData).forEach(([categoryId, data]) => {
+      const categoryMatches = data.category.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchingSubcategories = data.subcategories.filter(sub =>
+        sub.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      
+      if (categoryMatches || matchingSubcategories.length > 0) {
+        filtered[categoryId] = {
+          ...data,
+          subcategories: categoryMatches ? data.subcategories : matchingSubcategories,
+        };
+        
+        // Auto-expand categories with matching subcategories
+        if (matchingSubcategories.length > 0) {
+          setExpandedCategories(prev => new Set([...prev, categoryId]));
+        }
       }
     });
-
+    
     return filtered;
-  }, [categories, searchTerm, sortField, sortDirection]);
+  }, [groupedData, searchTerm]);
 
-  const handleSort = (field: SortField) => {
-    if (field === sortField) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
+  // Toggle category expansion
+  const toggleCategory = (categoryId: string) => {
+    setExpandedCategories(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(categoryId)) {
+        newSet.delete(categoryId);
+      } else {
+        newSet.add(categoryId);
+      }
+      return newSet;
+    });
   };
 
+  // Category management handlers
   const handleCreateCategory = () => {
     setEditingCategory(undefined);
-    setIsFormOpen(true);
+    setIsCategoryFormOpen(true);
   };
 
   const handleEditCategory = (category: Category) => {
     setEditingCategory(category);
-    setIsFormOpen(true);
+    setIsCategoryFormOpen(true);
   };
 
   const handleDeleteCategory = (id: string, name: string) => {
-    setCategoryToDelete({ id, name });
+    setItemToDelete({ id, name, type: 'category' });
     setIsDeleteDialogOpen(true);
   };
 
-  const handleFormSubmit = async (values: { name: string; color: string }) => {
-    let success;
+  const handleCategoryFormSubmit = async (values: { name: string; color: string }) => {
     if (editingCategory) {
-      success = await updateCategory(editingCategory.id, values);
+      await updateCategory(editingCategory.id, values);
     } else {
-      success = await createCategory(values);
+      await createCategory(values);
     }
-    
-    if (success) {
-      setIsFormOpen(false);
-      setEditingCategory(undefined);
-    }
+    setIsCategoryFormOpen(false);
+    setEditingCategory(undefined);
   };
 
+  // Subcategory management handlers
+  const handleCreateSubcategory = (categoryId: string) => {
+    setEditingSubcategory(undefined);
+    setDefaultCategoryId(categoryId);
+    setIsSubcategoryFormOpen(true);
+  };
+
+  const handleEditSubcategory = (subcategory: Subcategory) => {
+    setEditingSubcategory(subcategory);
+    setDefaultCategoryId(subcategory.category_id);
+    setIsSubcategoryFormOpen(true);
+  };
+
+  const handleDeleteSubcategory = (id: string, name: string) => {
+    setItemToDelete({ id, name, type: 'subcategory' });
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleSubcategoryFormSubmit = async (values: { name: string; color: string; category_id: string }) => {
+    if (editingSubcategory) {
+      await updateSubcategory(editingSubcategory.id, values);
+    } else {
+      await createSubcategory(values);
+    }
+    setIsSubcategoryFormOpen(false);
+    setEditingSubcategory(undefined);
+    setDefaultCategoryId('');
+  };
+
+  // Delete confirmation handler
+  const handleConfirmDelete = async () => {
+    if (!itemToDelete) return;
+    
+    if (itemToDelete.type === 'category') {
+      await deleteCategory(itemToDelete.id, itemToDelete.name);
+    } else {
+      await deleteSubcategory(itemToDelete.id, itemToDelete.name);
+    }
+    
+    setIsDeleteDialogOpen(false);
+    setItemToDelete(null);
+  };
+
+  // Export handlers
   const handleExportCSV = () => {
     const csvContent = [
-      ['Name', 'Color'],
-      ...categories.map(category => [
-        category.name,
-        category.color
-      ])
+      ['Category Name', 'Category Color', 'Subcategory Name', 'Subcategory Color'],
+      ...Object.values(filteredData).flatMap(({ category, subcategories }) =>
+        subcategories.length > 0
+          ? subcategories.map(sub => [
+              category.name,
+              category.color,
+              sub.name,
+              sub.color
+            ])
+          : [[category.name, category.color, '', '']]
+      )
     ];
 
     const csvString = csvContent.map(row => 
@@ -122,199 +203,12 @@ const Categories = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `categories-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `categories-hierarchy-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
 
-  // Generate random colors without repetition - DEPRECATED: Use DistinctColorGenerator instead
-  const generateRandomColors = (count: number): string[] => {
-    console.warn('generateRandomColors is deprecated. Use DistinctColorGenerator instead.');
-    const colors = [
-      '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e',
-      '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1',
-      '#8b5cf6', '#a855f7', '#c026d3', '#d946ef', '#ec4899', '#f43f5e',
-      '#64748b', '#6b7280', '#9ca3af', '#374151', '#111827', '#0f172a'
-    ];
-    
-    const shuffled = [...colors].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, Math.min(count, colors.length));
-  };
-
-  const parseCSVLine = (line: string): string[] => {
-    const values: string[] = [];
-    let current = '';
-    let inQuotes = false;
-    let i = 0;
-
-    while (i < line.length) {
-      const char = line[i];
-      
-      if (char === '"') {
-        if (inQuotes && line[i + 1] === '"') {
-          current += '"';
-          i += 2;
-        } else {
-          inQuotes = !inQuotes;
-          i++;
-        }
-      } else if (char === ',' && !inQuotes) {
-        values.push(current.trim());
-        current = '';
-        i++;
-      } else {
-        current += char;
-        i++;
-      }
-    }
-    
-    values.push(current.trim());
-    return values;
-  };
-
-  const handleImportCSV = (files: File[]) => {
-    if (files.length === 0) return;
-    
-    const file = files[0]; // Take the first file
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const csvContent = e.target?.result as string;
-        const lines = csvContent.split('\n').filter(line => line.trim());
-        
-        if (lines.length === 0) {
-          toast({
-            title: "Error",
-            description: "CSV file is empty",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        // Skip header row and parse data
-        const dataLines = lines.slice(1);
-        const parsedData: Array<{ name: string; color: string }> = [];
-        const errors: string[] = [];
-
-        // Check if we have color column by examining header
-        const headerLine = parseCSVLine(lines[0]);
-        const hasColorColumn = headerLine.length > 1 && headerLine[1]?.toLowerCase().includes('color');
-        
-        // Generate distinct colors if needed
-        const existingColors = categories.map(cat => cat.color);
-        const newColors = hasColorColumn ? [] : DistinctColorGenerator.generateMultipleDistinctColors(dataLines.length, existingColors);
-        let colorIndex = 0;
-
-        dataLines.forEach((line, index) => {
-          const lineNumber = index + 2;
-          if (!line.trim()) return;
-
-          try {
-            const values = parseCSVLine(line);
-            const name = values[0]?.trim();
-
-            if (!name) {
-              errors.push(`Line ${lineNumber}: Category name is required`);
-              return;
-            }
-
-            let color = DistinctColorGenerator.getNextCategoryColor(categories); // default distinct color
-            
-            if (hasColorColumn && values[1]) {
-              const colorValue = values[1].trim();
-              // Validate hex color
-              if (/^#[0-9A-Fa-f]{6}$/.test(colorValue)) {
-                color = colorValue;
-              } else {
-                errors.push(`Line ${lineNumber}: Invalid color format "${colorValue}". Using default color.`);
-              }
-            } else if (!hasColorColumn && newColors.length > 0) {
-              color = newColors[colorIndex % newColors.length];
-              colorIndex++;
-            }
-
-            parsedData.push({ name, color });
-          } catch (error) {
-            errors.push(`Line ${lineNumber}: Failed to parse - ${error instanceof Error ? error.message : 'Unknown error'}`);
-          }
-        });
-
-        if (errors.length > 0) {
-          toast({
-            title: "Import Warnings",
-            description: `${errors.length} issues found. Check console for details.`,
-            variant: "destructive",
-          });
-          console.warn('CSV Import Warnings:', errors);
-        }
-
-        if (parsedData.length === 0) {
-          toast({
-            title: "Error",
-            description: "No valid category data found in CSV file",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        setImportData(parsedData);
-        setIsImportDialogOpen(true);
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to parse CSV file",
-          variant: "destructive",
-        });
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  const performImport = async () => {
-    try {
-      let successCount = 0;
-      let errorCount = 0;
-
-      for (const categoryData of importData) {
-        const success = await createCategory(categoryData);
-        if (success) {
-          successCount++;
-        } else {
-          errorCount++;
-        }
-      }
-
-      toast({
-        title: "Import Complete",
-        description: `${successCount} categories imported successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}`,
-        variant: successCount > 0 ? "success" : "destructive",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to import categories",
-        variant: "destructive",
-      });
-    } finally {
-      setIsImportDialogOpen(false);
-      setImportData([]);
-    }
-  };
-
-  const confirmImport = () => {
-    performImport();
-  };
-
-  const SortButton = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
-    <Button variant="ghost" onClick={() => handleSort(field)} className="h-auto p-0 font-semibold hover:bg-transparent">
-      <div className="flex items-center gap-1">
-        {children}
-        {sortField === field && (
-          sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
-        )}
-      </div>
-    </Button>
-  );
+  const totalSubcategories = Object.values(filteredData).reduce((sum, data) => sum + data.subcategoryCount, 0);
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
@@ -323,8 +217,8 @@ const Categories = () => {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">Category Management</h1>
-          <p className="text-muted-foreground">Manage your expense categories</p>
+          <h1 className="text-3xl font-bold">Category & Subcategory Management</h1>
+          <p className="text-muted-foreground">Manage your hierarchical expense categories</p>
         </div>
       </div>
 
@@ -332,17 +226,21 @@ const Categories = () => {
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <CardTitle>Categories</CardTitle>
+              <CardTitle>Categories & Subcategories</CardTitle>
               <CardDescription>
-                {loading ? "Loading..." : `${filteredAndSortedCategories.length} categor${filteredAndSortedCategories.length === 1 ? 'y' : 'ies'} found`}
+                {loading ? "Loading..." : (
+                  <>
+                    {Object.keys(filteredData).length} categor{Object.keys(filteredData).length === 1 ? 'y' : 'ies'} • {totalSubcategories} subcategor{totalSubcategories === 1 ? 'y' : 'ies'}
+                  </>
+                )}
               </CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="destructive" size="sm" onClick={() => setIsDeleteAllDialogOpen(true)} disabled={categories.filter(cat => cat.name !== 'Uncategorized').length === 0}>
+              <Button variant="destructive" size="sm" onClick={() => setIsDeleteAllDialogOpen(true)} disabled={categories.length === 0}>
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete All
               </Button>
-              <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={categories.length === 0}>
+              <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={Object.keys(filteredData).length === 0}>
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
               </Button>
@@ -353,7 +251,12 @@ const Categories = () => {
                   onChange={(e) => {
                     const files = e.target.files;
                     if (files && files.length > 0) {
-                      handleImportCSV([files[0]]);
+                      // TODO: Implement CSV import for hierarchical data
+                      toast({
+                        title: "Coming Soon",
+                        description: "Hierarchical CSV import will be available in the next update.",
+                        variant: "default",
+                      });
                     }
                   }}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
@@ -378,20 +281,18 @@ const Categories = () => {
           />
 
           {loading ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center space-x-4">
-                  <Skeleton className="h-12 w-12 rounded" />
-                  <div className="space-y-2 flex-1">
-                    <Skeleton className="h-4 w-[200px]" />
-                    <Skeleton className="h-4 w-[100px]" />
+                <div key={i} className="space-y-2">
+                  <Skeleton className="h-12 w-full" />
+                  <div className="ml-6 space-y-1">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
                   </div>
-                  <Skeleton className="h-8 w-[70px]" />
-                  <Skeleton className="h-8 w-[70px]" />
                 </div>
               ))}
             </div>
-          ) : filteredAndSortedCategories.length === 0 ? (
+          ) : Object.keys(filteredData).length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">No categories found.</p>
               {searchTerm && (
@@ -401,134 +302,169 @@ const Categories = () => {
               )}
             </div>
           ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>
-                      <SortButton field="name">Name</SortButton>
-                    </TableHead>
-                    <TableHead>
-                      <SortButton field="color">Color</SortButton>
-                    </TableHead>
-                    <TableHead>
-                      <SortButton field="created_at">Created</SortButton>
-                    </TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAndSortedCategories.map((category) => (
-                    <TableRow key={category.id}>
-                      <TableCell className="font-medium">{category.name}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-4 h-4 rounded border"
-                            style={{ backgroundColor: category.color }}
-                          />
-                          <Badge variant="outline" style={{ color: category.color }}>
-                            {category.color}
-                          </Badge>
+            <div className="space-y-2">
+              {Object.entries(filteredData).map(([categoryId, { category, subcategories, subcategoryCount, shopCount }]) => {
+                const isExpanded = expandedCategories.has(categoryId);
+                
+                return (
+                  <div key={categoryId} className="border rounded-lg">
+                    {/* Category Row */}
+                    <div className="flex items-center justify-between p-4 hover:bg-muted/50">
+                      <div className="flex items-center gap-3 flex-1">
+                        <Collapsible open={isExpanded} onOpenChange={() => toggleCategory(categoryId)}>
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="sm" className="p-0 h-6 w-6">
+                              {subcategoryCount > 0 ? (
+                                isExpanded ? (
+                                  <FolderOpen className="h-4 w-4" />
+                                ) : (
+                                  <Folder className="h-4 w-4" />
+                                )
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </CollapsibleTrigger>
+                        </Collapsible>
+                        
+                        <div 
+                          className="w-4 h-4 rounded-full border" 
+                          style={{ backgroundColor: category.color }}
+                        />
+                        
+                        <div className="flex flex-col">
+                          <span className="font-medium">{category.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {subcategoryCount} subcategor{subcategoryCount === 1 ? 'y' : 'ies'} • {shopCount} shop{shopCount === 1 ? '' : 's'}
+                          </span>
                         </div>
-                      </TableCell>
-                      <TableCell>{new Date(category.created_at).toLocaleDateString()}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditCategory(category)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDeleteCategory(category.id, category.name)}
-                            disabled={category.name === 'Uncategorized'}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleCreateSubcategory(categoryId)}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Subcategory
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditCategory(category)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteCategory(category.id, category.name)}
+                          disabled={category.name === 'Otros gastos'}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {/* Subcategories */}
+                    {subcategoryCount > 0 && (
+                      <Collapsible open={isExpanded} onOpenChange={() => toggleCategory(categoryId)}>
+                        <CollapsibleContent className="border-t bg-muted/20">
+                          <div className="p-2 space-y-1">
+                            {subcategories.map((subcategory) => (
+                              <div className="flex items-center justify-between p-3 ml-6 rounded bg-background hover:bg-muted/50">
+                                <div className="flex items-center gap-3">
+                                  <div 
+                                    className="w-3 h-3 rounded-full border" 
+                                    style={{ backgroundColor: subcategory.color }}
+                                  />
+                                  <div className="flex flex-col">
+                                    <span className="text-sm">{subcategory.name}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {subcategory.shopCount || 0} shop{(subcategory.shopCount || 0) === 1 ? '' : 's'}
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditSubcategory(subcategory)}
+                                  >
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteSubcategory(subcategory.id, subcategory.name)}
+                                    disabled={subcategory.name === 'Otros gastos (otros)'}
+                                    className="text-destructive hover:text-destructive"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardContent>
       </Card>
 
+      {/* Category Form */}
       <CategoryForm
-        open={isFormOpen}
-        onOpenChange={setIsFormOpen}
-        onSubmit={handleFormSubmit}
+        open={isCategoryFormOpen}
+        onOpenChange={setIsCategoryFormOpen}
+        onSubmit={handleCategoryFormSubmit}
         category={editingCategory}
         title={editingCategory ? "Edit Category" : "Create New Category"}
-        description={editingCategory ? "Update the category details below." : "Add a new category to organize your expenses."}
+        description={editingCategory ? "Update the category details below." : "Add a new main category to organize your expenses."}
         existingCategories={categories}
       />
 
+      {/* Subcategory Form */}
+      <SubcategoryForm
+        open={isSubcategoryFormOpen}
+        onOpenChange={setIsSubcategoryFormOpen}
+        onSubmit={handleSubcategoryFormSubmit}
+        subcategory={editingSubcategory}
+        categories={categories}
+        existingSubcategories={subcategoriesWithCategories}
+        title={editingSubcategory ? "Edit Subcategory" : "Create New Subcategory"}
+        description={editingSubcategory ? "Update the subcategory details below." : "Add a new subcategory under the selected category."}
+        defaultCategoryId={defaultCategoryId}
+      />
+
+      {/* Delete Confirmation Dialog */}
       <DeleteConfirmationDialog
         isOpen={isDeleteDialogOpen}
         onClose={() => setIsDeleteDialogOpen(false)}
-        onConfirm={async () => {
-          if (categoryToDelete) {
-            const success = await deleteCategory(categoryToDelete.id, categoryToDelete.name);
-            if (success) {
-              setIsDeleteDialogOpen(false);
-              setCategoryToDelete(null);
-            }
-          }
-        }}
-        shopName={categoryToDelete?.name || ""}
+        onConfirm={handleConfirmDelete}
+        shopName={itemToDelete?.name || ''}
       />
 
-      <ImportConfirmationDialog
-        isOpen={isImportDialogOpen}
-        onClose={() => setIsImportDialogOpen(false)}
-        onConfirm={confirmImport}
-        fileName="categories"
-        currentShopCount={importData.length}
-      />
-
+      {/* Delete All Dialog */}
       <DeleteAllConfirmationDialog
         isOpen={isDeleteAllDialogOpen}
         onClose={() => setIsDeleteAllDialogOpen(false)}
-        onConfirm={async () => {
-          try {
-            // Delete all categories except "Uncategorized"
-            const categoriesToDelete = categories.filter(cat => cat.name !== 'Uncategorized');
-            let successCount = 0;
-            let errorCount = 0;
-
-            for (const category of categoriesToDelete) {
-              const success = await deleteCategory(category.id, category.name);
-              if (success) {
-                successCount++;
-              } else {
-                errorCount++;
-              }
-            }
-
-            toast({
-              title: "Delete All Complete",
-              description: `${successCount} categories deleted successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}`,
-              variant: successCount > 0 ? "success" : "destructive",
-            });
-          } catch (error) {
-            toast({
-              title: "Error",
-              description: "Failed to delete categories",
-              variant: "destructive",
-            });
-          } finally {
-            setIsDeleteAllDialogOpen(false);
-          }
+        onConfirm={() => {
+          // TODO: Implement delete all functionality
+          toast({
+            title: "Coming Soon",
+            description: "Bulk delete will be available in the next update.",
+            variant: "default",
+          });
+          setIsDeleteAllDialogOpen(false);
         }}
-        shopCount={categories.filter(cat => cat.name !== 'Uncategorized').length}
+        shopCount={Object.keys(filteredData).length}
       />
     </div>
   );

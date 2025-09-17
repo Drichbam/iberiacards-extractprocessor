@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export interface SubcategoryWithCategory extends Subcategory {
   category: string;
+  shopCount?: number;
 }
 
 export const useSubcategories = () => {
@@ -23,6 +24,9 @@ export const useSubcategories = () => {
           categories!category_id (
             name,
             color
+          ),
+          shops!subcategory_id (
+            id
           )
         `)
         .order('name', { ascending: true });
@@ -32,10 +36,11 @@ export const useSubcategories = () => {
       const subcategoriesData = data || [];
       setSubcategories(subcategoriesData);
       
-      // Transform for dropdown with category info
+      // Transform for dropdown with category info and shop counts
       const withCategories = subcategoriesData.map(subcat => ({
         ...subcat,
-        category: subcat.categories?.name || 'Uncategorized'
+        category: subcat.categories?.name || 'Uncategorized',
+        shopCount: subcat.shops?.length || 0,
       }));
       
       setSubcategoriesWithCategories(withCategories);
