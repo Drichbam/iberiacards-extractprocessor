@@ -18,6 +18,7 @@ import { Category } from "@/types/category";
 import { Subcategory } from "@/types/subcategory";
 import { useToast } from "@/hooks/use-toast";
 import { DistinctColorGenerator } from "@/utils/colorUtils";
+import { parseHierarchicalCSV, exportHierarchicalCSV } from "@/utils/hierarchicalCsvUtils";
 
 const Categories = () => {
   const navigate = useNavigate();
@@ -41,7 +42,12 @@ const Categories = () => {
   
   // Import state
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
-  const [importData, setImportData] = useState<any[]>([]);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [parsedImportData, setParsedImportData] = useState<{
+    categories: any[];
+    subcategories: any[];
+  } | null>(null);
+  const [isProcessingImport, setIsProcessingImport] = useState(false);
   
   // Filter and UI state
   const [searchTerm, setSearchTerm] = useState("");
@@ -181,31 +187,94 @@ const Categories = () => {
 
   // Export handlers
   const handleExportCSV = () => {
-    const csvContent = [
-      ['Category Name', 'Category Color', 'Subcategory Name', 'Subcategory Color'],
-      ...Object.values(filteredData).flatMap(({ category, subcategories }) =>
-        subcategories.length > 0
-          ? subcategories.map(sub => [
-              category.name,
-              category.color,
-              sub.name,
-              sub.color
-            ])
-          : [[category.name, category.color, '', '']]
-      )
-    ];
+    exportHierarchicalCSV(categories, subcategoriesWithCategories);
+  };
 
-    const csvString = csvContent.map(row => 
-      row.map(field => `"${field}"`).join(',')
-    ).join('\n');
+  // Import handlers
+  const handleFileUpload = async (file: File) => {
+    try {
+      setIsProcessingImport(true);
+      const content = await file.text();
+      const parsed = parseHierarchicalCSV(content);
+      
+      setImportFile(file);
+      setParsedImportData(parsed);
+      setIsImportDialogOpen(true);
+    } catch (error) {
+      toast({
+        title: "Import Error",
+        description: error instanceof Error ? error.message : "Failed to parse CSV file",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingImport(false);
+    }
+  };
 
-    const blob = new Blob([csvString], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `categories-hierarchy-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+  const handleImportConfirm = async () => {
+    if (!parsedImportData) return;
+
+    try {
+      setIsProcessingImport(true);
+
+      // Create categories first
+      const categoryIdMap = new Map<string, string>();
+      
+      for (const categoryData of parsedImportData.categories) {
+        try {
+          const existingCategory = categories.find(c => c.name === categoryData.name);
+          if (existingCategory) {
+            categoryIdMap.set(categoryData.name, existingCategory.id);
+          } else {
+            const newCategory = await createCategory(categoryData);
+            // Assuming createCategory returns the created category or we need to fetch it
+            const createdCategory = categories.find(c => c.name === categoryData.name);
+            if (createdCategory) {
+              categoryIdMap.set(categoryData.name, createdCategory.id);
+            }
+          }
+        } catch (error) {
+          console.error(`Failed to create category ${categoryData.name}:`, error);
+        }
+      }
+
+      // Small delay to ensure categories are created
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Create subcategories
+      for (const subcategoryData of parsedImportData.subcategories) {
+        try {
+          const categoryId = categoryIdMap.get(subcategoryData.category_name);
+          if (categoryId) {
+            await createSubcategory({
+              name: subcategoryData.name,
+              color: subcategoryData.color,
+              category_id: categoryId,
+            });
+          }
+        } catch (error) {
+          console.error(`Failed to create subcategory ${subcategoryData.name}:`, error);
+        }
+      }
+
+      toast({
+        title: "Import Successful",
+        description: `Imported ${parsedImportData.categories.length} categories and ${parsedImportData.subcategories.length} subcategories.`,
+        variant: "default",
+      });
+      
+      setIsImportDialogOpen(false);
+      setParsedImportData(null);
+      setImportFile(null);
+    } catch (error) {
+      toast({
+        title: "Import Failed",
+        description: error instanceof Error ? error.message : "Failed to import data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingImport(false);
+    }
   };
 
   const totalSubcategories = Object.values(filteredData).reduce((sum, data) => sum + data.subcategoryCount, 0);
@@ -251,20 +320,16 @@ const Categories = () => {
                   onChange={(e) => {
                     const files = e.target.files;
                     if (files && files.length > 0) {
-                      // TODO: Implement CSV import for hierarchical data
-                      toast({
-                        title: "Coming Soon",
-                        description: "Hierarchical CSV import will be available in the next update.",
-                        variant: "default",
-                      });
+                      handleFileUpload(files[0]);
                     }
                   }}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   aria-label="Import CSV file"
+                  disabled={isProcessingImport}
                 />
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" disabled={isProcessingImport}>
                   <Upload className="h-3 w-3 mr-1" />
-                  Import CSV
+                  {isProcessingImport ? "Processing..." : "Import CSV"}
                 </Button>
               </div>
               <Button size="sm" onClick={handleCreateCategory}>
@@ -469,6 +534,20 @@ const Categories = () => {
           setIsDeleteAllDialogOpen(false);
         }}
         shopCount={Object.keys(filteredData).length}
+      />
+
+      {/* Import Confirmation Dialog */}
+      <ImportConfirmationDialog
+        isOpen={isImportDialogOpen}
+        onClose={() => {
+          setIsImportDialogOpen(false);
+          setParsedImportData(null);
+          setImportFile(null);
+        }}
+        onConfirm={handleImportConfirm}
+        fileName={importFile?.name || ""}
+        currentShopCount={parsedImportData ? parsedImportData.categories.length + parsedImportData.subcategories.length : 0}
+        importType="categories"
       />
     </div>
   );
