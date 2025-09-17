@@ -19,6 +19,7 @@ import { Subcategory } from "@/types/subcategory";
 import { useToast } from "@/hooks/use-toast";
 import { DistinctColorGenerator } from "@/utils/colorUtils";
 import { parseHierarchicalCSV, exportHierarchicalCSV } from "@/utils/hierarchicalCsvUtils";
+import { supabase } from "@/integrations/supabase/client";
 
 const Categories = () => {
   const navigate = useNavigate();
@@ -217,7 +218,13 @@ const Categories = () => {
     try {
       setIsProcessingImport(true);
 
-      // Create categories first
+  const handleImportConfirm = async () => {
+    if (!parsedImportData) return;
+
+    try {
+      setIsProcessingImport(true);
+
+      // Create categories first and collect their IDs
       const categoryIdMap = new Map<string, string>();
       
       for (const categoryData of parsedImportData.categories) {
@@ -226,11 +233,15 @@ const Categories = () => {
           if (existingCategory) {
             categoryIdMap.set(categoryData.name, existingCategory.id);
           } else {
-            const newCategory = await createCategory(categoryData);
-            // Assuming createCategory returns the created category or we need to fetch it
-            const createdCategory = categories.find(c => c.name === categoryData.name);
-            if (createdCategory) {
-              categoryIdMap.set(categoryData.name, createdCategory.id);
+            // Create category and get the response
+            const response = await supabase
+              .from('categories')
+              .insert([categoryData])
+              .select('*')
+              .single();
+              
+            if (response.data) {
+              categoryIdMap.set(categoryData.name, response.data.id);
             }
           }
         } catch (error) {
@@ -238,24 +249,46 @@ const Categories = () => {
         }
       }
 
-      // Small delay to ensure categories are created
-      await new Promise(resolve => setTimeout(resolve, 500));
-
       // Create subcategories
       for (const subcategoryData of parsedImportData.subcategories) {
         try {
           const categoryId = categoryIdMap.get(subcategoryData.category_name);
           if (categoryId) {
-            await createSubcategory({
-              name: subcategoryData.name,
-              color: subcategoryData.color,
-              category_id: categoryId,
-            });
+            await supabase
+              .from('subcategories')
+              .insert([{
+                name: subcategoryData.name,
+                color: subcategoryData.color,
+                category_id: categoryId,
+              }]);
           }
         } catch (error) {
           console.error(`Failed to create subcategory ${subcategoryData.name}:`, error);
         }
       }
+
+      toast({
+        title: "Import Successful",
+        description: `Imported ${parsedImportData.categories.length} categories and ${parsedImportData.subcategories.length} subcategories.`,
+        variant: "default",
+      });
+      
+      // Refresh the data
+      window.location.reload();
+      
+      setIsImportDialogOpen(false);
+      setParsedImportData(null);
+      setImportFile(null);
+    } catch (error) {
+      toast({
+        title: "Import Failed",
+        description: error instanceof Error ? error.message : "Failed to import data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingImport(false);
+    }
+  };
 
       toast({
         title: "Import Successful",
