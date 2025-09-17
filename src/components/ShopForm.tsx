@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { CreateShopRequest, UpdateShopRequest, Shop } from '@/types/shop';
-import { useSubcategories } from '@/hooks/useSubcategories';
+import { useCategories } from '@/hooks/useCategories';
 
 interface ShopFormProps {
   isOpen: boolean;
@@ -17,27 +17,27 @@ interface ShopFormProps {
 
 export const ShopForm = ({ isOpen, onClose, onSubmit, initialData, mode }: ShopFormProps) => {
   const [shopName, setShopName] = useState(initialData?.shop_name || '');
-  const [subcategoryId, setSubcategoryId] = useState(initialData?.subcategory_id || '');
+  const [categoryId, setCategoryId] = useState(initialData?.category_id || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { subcategories } = useSubcategories();
+  const { categories } = useCategories();
 
   // Update form state when initialData changes
   useEffect(() => {
     if (isOpen) {
       setShopName(initialData?.shop_name || '');
-      setSubcategoryId(initialData?.subcategory_id || '');
+      setCategoryId(initialData?.category_id || '');
       setIsSubmitting(false);
     }
   }, [isOpen, initialData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!shopName.trim() || !subcategoryId) return;
+    if (!shopName.trim() || !categoryId) return;
 
     setIsSubmitting(true);
     const success = await onSubmit({
       shop_name: shopName.trim(),
-      subcategory_id: subcategoryId,
+      category_id: categoryId,
     });
     
     if (success) {
@@ -48,12 +48,12 @@ export const ShopForm = ({ isOpen, onClose, onSubmit, initialData, mode }: ShopF
 
   const handleClose = () => {
     setShopName(initialData?.shop_name || '');
-    setSubcategoryId(initialData?.subcategory_id || '');
+    setCategoryId(initialData?.category_id || '');
     setIsSubmitting(false);
     onClose();
   };
 
-  const isValid = shopName.trim().length > 0 && subcategoryId.length > 0;
+  const isValid = shopName.trim().length > 0 && categoryId.length > 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -85,26 +85,21 @@ export const ShopForm = ({ isOpen, onClose, onSubmit, initialData, mode }: ShopF
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="category">Subcategory</Label>
-            <Select value={subcategoryId} onValueChange={setSubcategoryId}>
-              <SelectTrigger className={!subcategoryId ? 'border-destructive' : ''}>
-                <SelectValue placeholder="Select a subcategory" />
+            <Label htmlFor="category">Category</Label>
+            <Select value={categoryId} onValueChange={setCategoryId}>
+              <SelectTrigger className={!categoryId ? 'border-destructive' : ''}>
+                <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent className="bg-background border shadow-md z-50">
-                {subcategories
-                  .sort((a, b) => (a.category?.name || '').localeCompare(b.category?.name || ''))
-                  .map((subcat) => (
-                  <SelectItem key={subcat.id} value={subcat.id}>
-                    <span className="text-xs text-muted-foreground mr-2">
-                      {subcat.category?.name}
-                    </span>
-                    {subcat.name}
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {!subcategoryId && (
-              <p className="text-sm text-destructive">Subcategory is required</p>
+            {!categoryId && (
+              <p className="text-sm text-destructive">Category is required</p>
             )}
           </div>
 

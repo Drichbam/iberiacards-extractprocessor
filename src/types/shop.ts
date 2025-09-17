@@ -1,7 +1,7 @@
 export interface Shop {
   id: string;
   shop_name: string;
-  subcategory_id: string;
+  category_id: string;
   category?: string; // For backwards compatibility with joined data
   created_at: string;
   modified_at: string;
@@ -9,12 +9,12 @@ export interface Shop {
 
 export interface CreateShopRequest {
   shop_name: string;
-  subcategory_id: string;
+  category_id: string;
 }
 
 export interface UpdateShopRequest {
   shop_name: string;
-  subcategory_id: string;
+  category_id: string;
 }
 
 export const SHOP_CATEGORIES = [
