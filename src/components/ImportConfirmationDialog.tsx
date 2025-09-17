@@ -40,9 +40,9 @@ export function ImportConfirmationDialog({
               You are about to import <strong>{fileName}</strong>.
             </p>
             {isCategories ? (
-              <p className="text-blue-600 font-medium">
-                This will add {currentShopCount} new categories and subcategories to your existing data.
-                Existing categories with the same name will be preserved.
+              <p className="text-orange-600 font-medium">
+                ⚠️ This will COMPLETELY REPLACE all existing categories and subcategories with {currentShopCount} new entries from the CSV file.
+                All existing data will be permanently deleted. This action cannot be undone.
               </p>
             ) : (
               <>
@@ -58,9 +58,9 @@ export function ImportConfirmationDialog({
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction 
             onClick={onConfirm} 
-            className={isCategories ? "" : "bg-destructive text-destructive-foreground hover:bg-destructive/90"}
+            className={isCategories ? "bg-orange-600 text-white hover:bg-orange-700" : "bg-destructive text-destructive-foreground hover:bg-destructive/90"}
           >
-            {isCategories ? 'Import Categories' : 'Replace All Entries'}
+            {isCategories ? 'Replace All Data' : 'Replace All Entries'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

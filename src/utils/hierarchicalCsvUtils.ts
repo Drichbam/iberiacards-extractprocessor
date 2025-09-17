@@ -54,7 +54,7 @@ export const exportHierarchicalCSV = (categories: Category[], subcategoriesWithC
   URL.revokeObjectURL(url);
 };
 
-export const parseHierarchicalCSV = (csvContent: string, existingCategories: Category[] = []): {
+export const parseHierarchicalCSV = (csvContent: string, existingCategories: Category[] = [], ignoreColors = false): {
   categories: CreateCategoryRequest[];
   subcategories: (CreateSubcategoryRequest & { category_name: string })[];
 } => {
@@ -69,9 +69,7 @@ export const parseHierarchicalCSV = (csvContent: string, existingCategories: Cat
   const headers = parseCSVLine(headerLine).map(h => h.trim().toLowerCase());
   
   const categoryNameIndex = headers.findIndex(h => h.includes('category') && h.includes('name'));
-  const categoryColorIndex = headers.findIndex(h => h.includes('category') && h.includes('color'));
   const subcategoryNameIndex = headers.findIndex(h => h.includes('subcategory') && h.includes('name'));
-  const subcategoryColorIndex = headers.findIndex(h => h.includes('subcategory') && h.includes('color'));
   
   if (categoryNameIndex === -1) {
     throw new Error('CSV must contain a "Category Name" column');
@@ -107,21 +105,18 @@ export const parseHierarchicalCSV = (csvContent: string, existingCategories: Cat
         return;
       }
 
-      // Get or generate category color
-      let categoryColor = categoryColorIndex !== -1 ? values[categoryColorIndex]?.trim() : '';
-      if (!categoryColor || !isValidHexColor(categoryColor)) {
-        // Generate distinct color if not provided or invalid
-        if (!generatedCategoryColors.has(categoryName)) {
-          const allExistingColors = [...existingCategoryColors, ...Array.from(generatedCategoryColors.values())];
-          const newColor = DistinctColorGenerator.generateDistinctColor(allExistingColors);
-          generatedCategoryColors.set(categoryName, newColor);
-          categoryColor = newColor;
-        } else {
-          categoryColor = generatedCategoryColors.get(categoryName)!;
-        }
+      // Always generate new colors when ignoreColors is true, or if not provided
+      let categoryColor: string;
+      if (ignoreColors || !generatedCategoryColors.has(categoryName)) {
+        const allExistingColors = [...existingCategoryColors, ...Array.from(generatedCategoryColors.values())];
+        const newColor = DistinctColorGenerator.generateDistinctColor(allExistingColors);
+        generatedCategoryColors.set(categoryName, newColor);
+        categoryColor = newColor;
+      } else {
+        categoryColor = generatedCategoryColors.get(categoryName)!;
       }
 
-      // Add category to map (will handle duplicates by keeping the first occurrence)
+      // Add category to map (will handle duplicates by keeping the first occurrence with generated color)
       if (!categoriesMap.has(categoryName)) {
         categoriesMap.set(categoryName, {
           name: categoryName,
@@ -132,19 +127,14 @@ export const parseHierarchicalCSV = (csvContent: string, existingCategories: Cat
       // Handle subcategory if column exists and has data
       const subcategoryName = subcategoryNameIndex !== -1 ? values[subcategoryNameIndex]?.trim() : '';
       if (subcategoryName) {
-        // Get or generate subcategory color
-        let subcategoryColor = subcategoryColorIndex !== -1 ? values[subcategoryColorIndex]?.trim() : '';
-        if (!subcategoryColor || !isValidHexColor(subcategoryColor)) {
-          // Generate distinct color for subcategory
-          const allSubcategoryColors = [...generatedSubcategoryColors];
-          const newColor = DistinctColorGenerator.generateDistinctColor(allSubcategoryColors);
-          generatedSubcategoryColors.push(newColor);
-          subcategoryColor = newColor;
-        }
+        // Always generate distinct color for subcategory
+        const allSubcategoryColors = [...generatedSubcategoryColors];
+        const newColor = DistinctColorGenerator.generateDistinctColor(allSubcategoryColors);
+        generatedSubcategoryColors.push(newColor);
 
         subcategories.push({
           name: subcategoryName,
-          color: subcategoryColor,
+          color: newColor,
           category_id: '', // Will be resolved later
           category_name: categoryName,
         });

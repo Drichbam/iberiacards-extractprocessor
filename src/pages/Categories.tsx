@@ -196,7 +196,7 @@ const Categories = () => {
     try {
       setIsProcessingImport(true);
       const content = await file.text();
-      const parsed = parseHierarchicalCSV(content, categories);
+      const parsed = parseHierarchicalCSV(content, categories, true); // Ignore colors
       
       setImportFile(file);
       setParsedImportData(parsed);
@@ -224,32 +224,57 @@ const Categories = () => {
     try {
       setIsProcessingImport(true);
 
-      // Create categories first and collect their IDs
+      // First, delete ALL existing categories and subcategories (this will cascade to shops)
+      console.log('Deleting all existing categories and subcategories...');
+      
+      // Delete all subcategories first
+      const { error: deleteSubcategoriesError } = await supabase
+        .from('subcategories')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all records
+        
+      if (deleteSubcategoriesError) {
+        console.error('Error deleting subcategories:', deleteSubcategoriesError);
+        throw new Error('Failed to delete existing subcategories');
+      }
+
+      // Delete all categories  
+      const { error: deleteCategoriesError } = await supabase
+        .from('categories')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all records
+        
+      if (deleteCategoriesError) {
+        console.error('Error deleting categories:', deleteCategoriesError);
+        throw new Error('Failed to delete existing categories');
+      }
+
+      console.log('Successfully deleted all existing data');
+
+      // Now create new categories and collect their IDs
+      console.log('Creating new categories...');
       const categoryIdMap = new Map<string, string>();
       
       for (const categoryData of parsedImportData.categories) {
         try {
-          const existingCategory = categories.find(c => c.name === categoryData.name);
-          if (existingCategory) {
-            categoryIdMap.set(categoryData.name, existingCategory.id);
-          } else {
-            // Create category and get the response
-            const response = await supabase
-              .from('categories')
-              .insert([categoryData])
-              .select('*')
-              .single();
-              
-            if (response.data) {
-              categoryIdMap.set(categoryData.name, response.data.id);
-            }
+          const response = await supabase
+            .from('categories')
+            .insert([categoryData])
+            .select('*')
+            .single();
+            
+          if (response.data) {
+            categoryIdMap.set(categoryData.name, response.data.id);
+            console.log(`Created category: ${categoryData.name}`);
           }
         } catch (error) {
           console.error(`Failed to create category ${categoryData.name}:`, error);
+          throw error;
         }
       }
 
       // Create subcategories
+      console.log('Creating new subcategories...');
       for (const subcategoryData of parsedImportData.subcategories) {
         try {
           const categoryId = categoryIdMap.get(subcategoryData.category_name);
@@ -261,25 +286,34 @@ const Categories = () => {
                 color: subcategoryData.color,
                 category_id: categoryId,
               }]);
+            console.log(`Created subcategory: ${subcategoryData.name} under ${subcategoryData.category_name}`);
+          } else {
+            console.warn(`Category not found for subcategory: ${subcategoryData.name}`);
           }
         } catch (error) {
           console.error(`Failed to create subcategory ${subcategoryData.name}:`, error);
+          throw error;
         }
       }
 
       toast({
         title: "Import Successful",
-        description: `Imported ${parsedImportData.categories.length} categories and ${parsedImportData.subcategories.length} subcategories.`,
+        description: `Successfully replaced all data with ${parsedImportData.categories.length} categories and ${parsedImportData.subcategories.length} subcategories.`,
         variant: "default",
       });
       
-      // Refresh the data
-      window.location.reload();
+      console.log('Import completed successfully');
+      
+      // Refresh the page to reload all data
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
       
       setIsImportDialogOpen(false);
       setParsedImportData(null);
       setImportFile(null);
     } catch (error) {
+      console.error('Import failed:', error);
       toast({
         title: "Import Failed",
         description: error instanceof Error ? error.message : "Failed to import data",
