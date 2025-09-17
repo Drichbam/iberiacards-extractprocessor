@@ -211,23 +211,23 @@ const Categories = () => {
   const totalSubcategories = Object.values(filteredData).reduce((sum, data) => sum + data.subcategoryCount, 0);
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
-      <div className="flex items-center gap-4 mb-6">
+    <div className="container mx-auto p-4 max-w-7xl">
+      <div className="flex items-center gap-3 mb-4">
         <Button variant="ghost" onClick={() => navigate(-1)} className="p-2">
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">Category & Subcategory Management</h1>
-          <p className="text-muted-foreground">Manage your hierarchical expense categories</p>
+          <h1 className="text-2xl font-bold">Category & Subcategory Management</h1>
+          <p className="text-sm text-muted-foreground">Manage your hierarchical expense categories</p>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <Card className="h-[calc(100vh-12rem)]">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <CardTitle>Categories & Subcategories</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-lg">Categories & Subcategories</CardTitle>
+              <CardDescription className="text-sm">
                 {loading ? "Loading..." : (
                   <>
                     {Object.keys(filteredData).length} categor{Object.keys(filteredData).length === 1 ? 'y' : 'ies'} • {totalSubcategories} subcategor{totalSubcategories === 1 ? 'y' : 'ies'}
@@ -235,13 +235,13 @@ const Categories = () => {
                 )}
               </CardDescription>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               <Button variant="destructive" size="sm" onClick={() => setIsDeleteAllDialogOpen(true)} disabled={categories.length === 0}>
-                <Trash2 className="h-4 w-4 mr-2" />
+                <Trash2 className="h-3 w-3 mr-1.5" />
                 Delete All
               </Button>
               <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={Object.keys(filteredData).length === 0}>
-                <Download className="h-4 w-4 mr-2" />
+                <Download className="h-3 w-3 mr-1.5" />
                 Export CSV
               </Button>
               <div className="relative">
@@ -263,106 +263,111 @@ const Categories = () => {
                   aria-label="Import CSV file"
                 />
                 <Button variant="outline" size="sm">
-                  <Upload className="h-4 w-4 mr-2" />
+                  <Upload className="h-3 w-3 mr-1.5" />
                   Import CSV
                 </Button>
               </div>
-              <Button onClick={handleCreateCategory}>
-                <Plus className="h-4 w-4 mr-2" />
+              <Button onClick={handleCreateCategory} size="sm">
+                <Plus className="h-3 w-3 mr-1.5" />
                 New Category
               </Button>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <CategoryFilters
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-          />
+        <CardContent className="p-4 h-full overflow-hidden">
+          <div className="mb-3">
+            <CategoryFilters
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+            />
+          </div>
 
           {loading ? (
-            <div className="space-y-4">
+            <div className="space-y-2">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="space-y-2">
-                  <Skeleton className="h-12 w-full" />
-                  <div className="ml-6 space-y-1">
-                    <Skeleton className="h-8 w-full" />
-                    <Skeleton className="h-8 w-full" />
+                <div key={i} className="space-y-1">
+                  <Skeleton className="h-10 w-full" />
+                  <div className="ml-4 space-y-1">
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" />
                   </div>
                 </div>
               ))}
             </div>
           ) : Object.keys(filteredData).length === 0 ? (
-            <div className="text-center py-12">
+            <div className="text-center py-8">
               <p className="text-muted-foreground">No categories found.</p>
               {searchTerm && (
-                <Button variant="link" onClick={() => setSearchTerm("")} className="mt-2">
+                <Button variant="link" onClick={() => setSearchTerm("")} className="mt-1">
                   Clear search
                 </Button>
               )}
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1 overflow-y-auto max-h-[calc(100vh-20rem)]">
               {Object.entries(filteredData).map(([categoryId, { category, subcategories, subcategoryCount, shopCount }]) => {
                 const isExpanded = expandedCategories.has(categoryId);
                 
                 return (
-                  <div key={categoryId} className="border rounded-lg">
+                  <div key={categoryId} className="border rounded-md">
                     {/* Category Row */}
-                    <div className="flex items-center justify-between p-4 hover:bg-muted/50">
-                      <div className="flex items-center gap-3 flex-1">
+                    <div className="flex items-center justify-between p-3 hover:bg-muted/50">
+                      <div className="flex items-center gap-2 flex-1">
                         <Collapsible open={isExpanded} onOpenChange={() => toggleCategory(categoryId)}>
                           <CollapsibleTrigger asChild>
-                            <Button variant="ghost" size="sm" className="p-0 h-6 w-6">
+                            <Button variant="ghost" size="sm" className="p-0 h-5 w-5">
                               {subcategoryCount > 0 ? (
                                 isExpanded ? (
-                                  <FolderOpen className="h-4 w-4" />
+                                  <FolderOpen className="h-3 w-3" />
                                 ) : (
-                                  <Folder className="h-4 w-4" />
+                                  <Folder className="h-3 w-3" />
                                 )
                               ) : (
-                                <ChevronRight className="h-4 w-4" />
+                                <ChevronRight className="h-3 w-3" />
                               )}
                             </Button>
                           </CollapsibleTrigger>
                         </Collapsible>
                         
                         <div 
-                          className="w-4 h-4 rounded-full border" 
+                          className="w-3 h-3 rounded-full border" 
                           style={{ backgroundColor: category.color }}
                         />
                         
                         <div className="flex flex-col">
-                          <span className="font-medium">{category.name}</span>
+                          <span className="font-medium text-sm">{category.name}</span>
                           <span className="text-xs text-muted-foreground">
                             {subcategoryCount} subcategor{subcategoryCount === 1 ? 'y' : 'ies'} • {shopCount} shop{shopCount === 1 ? '' : 's'}
                           </span>
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleCreateSubcategory(categoryId)}
+                          className="h-7 px-2"
                         >
-                          <Plus className="h-4 w-4 mr-1" />
+                          <Plus className="h-3 w-3 mr-1" />
                           Add Subcategory
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleEditCategory(category)}
+                          className="h-7 px-2"
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-3 w-3" />
                         </Button>
                         <Button
                           variant="destructive"
                           size="sm"
                           onClick={() => handleDeleteCategory(category.id, category.name)}
                           disabled={category.name === 'Otros gastos'}
+                          className="h-7 px-2"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
@@ -371,38 +376,39 @@ const Categories = () => {
                     {subcategoryCount > 0 && (
                       <Collapsible open={isExpanded} onOpenChange={() => toggleCategory(categoryId)}>
                         <CollapsibleContent className="border-t bg-muted/20">
-                          <div className="p-2 space-y-1">
+                          <div className="p-1 space-y-0.5">
                             {subcategories.map((subcategory) => (
-                              <div className="flex items-center justify-between p-3 ml-6 rounded bg-background hover:bg-muted/50">
-                                <div className="flex items-center gap-3">
+                              <div key={subcategory.id} className="flex items-center justify-between p-2 ml-4 rounded bg-background hover:bg-muted/50">
+                                <div className="flex items-center gap-2">
                                   <div 
-                                    className="w-3 h-3 rounded-full border" 
+                                    className="w-2 h-2 rounded-full border" 
                                     style={{ backgroundColor: subcategory.color }}
                                   />
                                   <div className="flex flex-col">
-                                    <span className="text-sm">{subcategory.name}</span>
+                                    <span className="text-xs">{subcategory.name}</span>
                                     <span className="text-xs text-muted-foreground">
                                       {subcategory.shopCount || 0} shop{(subcategory.shopCount || 0) === 1 ? '' : 's'}
                                     </span>
                                   </div>
                                 </div>
                                 
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center gap-0.5">
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handleEditSubcategory(subcategory)}
+                                    className="h-6 px-1.5"
                                   >
-                                    <Edit className="h-3 w-3" />
+                                    <Edit className="h-2.5 w-2.5" />
                                   </Button>
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handleDeleteSubcategory(subcategory.id, subcategory.name)}
                                     disabled={subcategory.name === 'Otros gastos (otros)'}
-                                    className="text-destructive hover:text-destructive"
+                                    className="text-destructive hover:text-destructive h-6 px-1.5"
                                   >
-                                    <Trash2 className="h-3 w-3" />
+                                    <Trash2 className="h-2.5 w-2.5" />
                                   </Button>
                                 </div>
                               </div>
