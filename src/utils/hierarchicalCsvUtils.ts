@@ -1,5 +1,6 @@
 import { Category, CreateCategoryRequest } from '@/types/category';
 import { CreateSubcategoryRequest } from '@/types/subcategory';
+import { DistinctColorGenerator } from './colorUtils';
 
 export interface HierarchicalCSVData {
   category_name: string;
@@ -53,7 +54,7 @@ export const exportHierarchicalCSV = (categories: Category[], subcategoriesWithC
   URL.revokeObjectURL(url);
 };
 
-export const parseHierarchicalCSV = (csvContent: string): {
+export const parseHierarchicalCSV = (csvContent: string, existingCategories: Category[] = []): {
   categories: CreateCategoryRequest[];
   subcategories: (CreateSubcategoryRequest & { category_name: string })[];
 } => {
@@ -63,11 +64,29 @@ export const parseHierarchicalCSV = (csvContent: string): {
     throw new Error('CSV file is empty');
   }
 
+  // Parse header to determine column positions
+  const headerLine = lines[0];
+  const headers = parseCSVLine(headerLine).map(h => h.trim().toLowerCase());
+  
+  const categoryNameIndex = headers.findIndex(h => h.includes('category') && h.includes('name'));
+  const categoryColorIndex = headers.findIndex(h => h.includes('category') && h.includes('color'));
+  const subcategoryNameIndex = headers.findIndex(h => h.includes('subcategory') && h.includes('name'));
+  const subcategoryColorIndex = headers.findIndex(h => h.includes('subcategory') && h.includes('color'));
+  
+  if (categoryNameIndex === -1) {
+    throw new Error('CSV must contain a "Category Name" column');
+  }
+
   // Skip header row
   const dataLines = lines.slice(1);
   const categoriesMap = new Map<string, CreateCategoryRequest>();
   const subcategories: (CreateSubcategoryRequest & { category_name: string })[] = [];
   const errors: string[] = [];
+
+  // Collect existing colors for generating distinct colors
+  const existingCategoryColors = existingCategories.map(cat => cat.color);
+  const generatedCategoryColors = new Map<string, string>();
+  const generatedSubcategoryColors: string[] = [];
 
   dataLines.forEach((line, index) => {
     const lineNumber = index + 2;
@@ -77,31 +96,29 @@ export const parseHierarchicalCSV = (csvContent: string): {
     try {
       const values = parseCSVLine(line);
       
-      if (values.length < 2) {
-        errors.push(`Line ${lineNumber}: Missing required columns (expected: Category Name, Category Color, Subcategory Name, Subcategory Color)`);
+      if (values.length <= categoryNameIndex) {
+        errors.push(`Line ${lineNumber}: Missing category name column`);
         return;
       }
 
-      const categoryName = values[0]?.trim();
-      const categoryColor = values[1]?.trim() || '#6366f1';
-      const subcategoryName = values[2]?.trim();
-      const subcategoryColor = values[3]?.trim() || '#6366f1';
-
+      const categoryName = values[categoryNameIndex]?.trim();
       if (!categoryName) {
         errors.push(`Line ${lineNumber}: Category name is required`);
         return;
       }
 
-      // Validate colors are in hex format
-      const hexColorRegex = /^#[0-9A-F]{6}$/i;
-      if (!hexColorRegex.test(categoryColor)) {
-        errors.push(`Line ${lineNumber}: Category color must be a valid hex color (e.g., #6366f1)`);
-        return;
-      }
-
-      if (subcategoryName && !hexColorRegex.test(subcategoryColor)) {
-        errors.push(`Line ${lineNumber}: Subcategory color must be a valid hex color (e.g., #6366f1)`);
-        return;
+      // Get or generate category color
+      let categoryColor = categoryColorIndex !== -1 ? values[categoryColorIndex]?.trim() : '';
+      if (!categoryColor || !isValidHexColor(categoryColor)) {
+        // Generate distinct color if not provided or invalid
+        if (!generatedCategoryColors.has(categoryName)) {
+          const allExistingColors = [...existingCategoryColors, ...Array.from(generatedCategoryColors.values())];
+          const newColor = DistinctColorGenerator.generateDistinctColor(allExistingColors);
+          generatedCategoryColors.set(categoryName, newColor);
+          categoryColor = newColor;
+        } else {
+          categoryColor = generatedCategoryColors.get(categoryName)!;
+        }
       }
 
       // Add category to map (will handle duplicates by keeping the first occurrence)
@@ -112,8 +129,19 @@ export const parseHierarchicalCSV = (csvContent: string): {
         });
       }
 
-      // Add subcategory if it exists
+      // Handle subcategory if column exists and has data
+      const subcategoryName = subcategoryNameIndex !== -1 ? values[subcategoryNameIndex]?.trim() : '';
       if (subcategoryName) {
+        // Get or generate subcategory color
+        let subcategoryColor = subcategoryColorIndex !== -1 ? values[subcategoryColorIndex]?.trim() : '';
+        if (!subcategoryColor || !isValidHexColor(subcategoryColor)) {
+          // Generate distinct color for subcategory
+          const allSubcategoryColors = [...generatedSubcategoryColors];
+          const newColor = DistinctColorGenerator.generateDistinctColor(allSubcategoryColors);
+          generatedSubcategoryColors.push(newColor);
+          subcategoryColor = newColor;
+        }
+
         subcategories.push({
           name: subcategoryName,
           color: subcategoryColor,
@@ -139,6 +167,12 @@ export const parseHierarchicalCSV = (csvContent: string): {
     subcategories,
   };
 };
+
+// Helper function to validate hex colors
+function isValidHexColor(color: string): boolean {
+  const hexColorRegex = /^#[0-9A-F]{6}$/i;
+  return hexColorRegex.test(color);
+}
 
 // Helper function to parse CSV line with proper quoted value handling
 function parseCSVLine(line: string): string[] {

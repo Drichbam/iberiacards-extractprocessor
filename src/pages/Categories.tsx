@@ -196,7 +196,7 @@ const Categories = () => {
     try {
       setIsProcessingImport(true);
       const content = await file.text();
-      const parsed = parseHierarchicalCSV(content);
+      const parsed = parseHierarchicalCSV(content, categories);
       
       setImportFile(file);
       setParsedImportData(parsed);
