@@ -3,18 +3,20 @@ import { Shop } from '@/types/shop';
 export interface ShopCSVData {
   shop_name: string;
   category_name: string;
+  subcategory_name?: string;
 }
 
 export const exportShopsToCSV = (shops: Shop[]) => {
-  // CSV headers
-  const headers = ['Shop Name', 'Category'];
+  // Enhanced CSV headers to include both category and subcategory
+  const headers = ['Shop Name', 'Category', 'Subcategory'];
   
-  // Create CSV content
+  // Create CSV content with hierarchical data
   const csvContent = [
     headers.join(','),
     ...shops.map(shop => [
       `"${shop.shop_name.replace(/"/g, '""')}"`,
-      `"${shop.category.replace(/"/g, '""')}"`,
+      `"${(shop.category || 'Uncategorized').replace(/"/g, '""')}"`,
+      `"${(shop.subcategory || 'Uncategorized').replace(/"/g, '""')}"`,
     ].join(','))
   ].join('\n');
 
@@ -46,6 +48,11 @@ export const parseShopsFromCSV = (csvContent: string): ShopCSVData[] => {
     throw new Error('CSV file is empty');
   }
 
+  // Check if we have the new format with subcategory column
+  const headerLine = lines[0];
+  const headers = parseCSVLine(headerLine).map(h => h.trim().toLowerCase());
+  const hasSubcategoryColumn = headers.includes('subcategory');
+
   // Skip header row
   const dataLines = lines.slice(1);
   const shops: ShopCSVData[] = [];
@@ -60,13 +67,18 @@ export const parseShopsFromCSV = (csvContent: string): ShopCSVData[] => {
       // Parse CSV line handling quoted values
       const values = parseCSVLine(line);
       
-      if (values.length < 2) {
-        errors.push(`Line ${lineNumber}: Missing required columns (expected: Shop Name, Category)`);
+      const requiredColumns = hasSubcategoryColumn ? 3 : 2;
+      if (values.length < requiredColumns) {
+        const expectedFormat = hasSubcategoryColumn ? 
+          'Shop Name, Category, Subcategory' : 
+          'Shop Name, Category';
+        errors.push(`Line ${lineNumber}: Missing required columns (expected: ${expectedFormat})`);
         return;
       }
 
       const shopName = values[0]?.trim();
       const category = values[1]?.trim();
+      const subcategory = hasSubcategoryColumn ? values[2]?.trim() : undefined;
 
       if (!shopName) {
         errors.push(`Line ${lineNumber}: Shop name is required`);
@@ -81,6 +93,7 @@ export const parseShopsFromCSV = (csvContent: string): ShopCSVData[] => {
       shops.push({
         shop_name: shopName,
         category_name: category, // Store category name, will be resolved to ID later
+        subcategory_name: subcategory || undefined,
       });
     } catch (error) {
       errors.push(`Line ${lineNumber}: Failed to parse - ${error instanceof Error ? error.message : 'Unknown error'}`);

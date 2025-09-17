@@ -14,6 +14,7 @@ import { DeleteConfirmationDialog } from '@/components/DeleteConfirmationDialog'
 import { DeleteAllConfirmationDialog } from '@/components/DeleteAllConfirmationDialog';
 import { ImportConfirmationDialog } from '@/components/ImportConfirmationDialog';
 import { ShopFiltersComponent, type ShopFilters } from '@/components/ShopFilters';
+import { HierarchicalShopFilters } from '@/components/HierarchicalShopFilters';
 import { Shop, CreateShopRequest } from '@/types/shop';
 import { exportShopsToCSV, parseShopsFromCSV, ShopCSVData } from '@/utils/shopCsvUtils';
 import { useToast } from '@/hooks/use-toast';
@@ -180,8 +181,8 @@ export default function ShopCategories() {
   const handleExportCSV = () => {
     exportShopsToCSV(shops);
     toast({
-      title: "Export Complete",
-      description: `${shops.length} shops exported to CSV`,
+      title: "Export Complete", 
+      description: `${shops.length} shops exported with category hierarchy`,
       variant: "success",
     });
   };
@@ -273,9 +274,15 @@ export default function ShopCategories() {
         await Promise.all(deletePromises);
       }
 
-      // Get all unique category names from CSV
-      const uniqueCategoryNames = [...new Set(csvShops.map(shop => shop.category_name))];
-      const createdCategories: string[] = [];
+  // Get all unique category names from CSV
+  const uniqueCategoryNames = [...new Set(csvShops.map(shop => shop.category_name))];
+  // Get all unique subcategory names from CSV (for new format)
+  const uniqueSubcategoryNames = [...new Set(csvShops
+    .filter(shop => shop.subcategory_name)
+    .map(shop => shop.subcategory_name!)
+  )];
+  
+  const createdCategories: string[] = [];
 
       // Pre-create all missing categories to avoid race conditions
       const existingColors = categories.map(cat => cat.color);
@@ -319,7 +326,7 @@ export default function ShopCategories() {
       // Wait a bit for the refetch to complete
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Get updated categories from the database to ensure we have the latest data
+      // Get updated categories and subcategories from the database to ensure we have the latest data
       const { data: updatedCategories, error: fetchError } = await supabase
         .from('categories')
         .select('*')
@@ -329,18 +336,63 @@ export default function ShopCategories() {
         throw new Error(`Failed to fetch updated categories: ${fetchError.message}`);
       }
 
-      // Map shop data to include category IDs
+      // Also fetch subcategories with category information for mapping
+      const { data: updatedSubcategories, error: subFetchError } = await supabase
+        .from('subcategories')
+        .select(`
+          *,
+          categories!category_id (
+            name,
+            color
+          )
+        `)
+        .order('name', { ascending: true });
+
+      if (subFetchError) {
+        throw new Error(`Failed to fetch updated subcategories: ${subFetchError.message}`);
+      }
+
+      // Get default subcategory for fallback
+      const defaultSubcategory = updatedSubcategories?.find(sub => sub.name === 'Otros gastos (otros)');
+      const defaultSubcategoryId = defaultSubcategory?.id;
+
+      if (!defaultSubcategoryId) {
+        throw new Error('Default subcategory "Otros gastos (otros)" not found');
+      }
+
+      // Enhanced mapping to handle both category-only and category+subcategory imports
       const shopDataWithIds: CreateShopRequest[] = [];
       
       for (const csvShop of csvShops) {
-        const category = updatedCategories?.find(cat => cat.name === csvShop.category_name);
-        if (!category) {
-          throw new Error(`Category "${csvShop.category_name}" not found after creation`);
+        let subcategoryId: string;
+        
+        if (csvShop.subcategory_name) {
+          // New format: Look for specific subcategory
+          const subcategory = updatedSubcategories?.find(sub => 
+            sub.name === csvShop.subcategory_name && 
+            sub.categories?.name === csvShop.category_name
+          );
+          
+          if (subcategory) {
+            subcategoryId = subcategory.id;
+          } else {
+            // Fallback: Find any subcategory in the category
+            const fallbackSubcategory = updatedSubcategories?.find(sub => 
+              sub.categories?.name === csvShop.category_name
+            );
+            subcategoryId = fallbackSubcategory?.id || defaultSubcategoryId;
+          }
+        } else {
+          // Legacy format: Find first subcategory in the category
+          const categorySubcategory = updatedSubcategories?.find(sub => 
+            sub.categories?.name === csvShop.category_name
+          );
+          subcategoryId = categorySubcategory?.id || defaultSubcategoryId;
         }
 
         shopDataWithIds.push({
           shop_name: csvShop.shop_name,
-          subcategory_id: category.id,
+          subcategory_id: subcategoryId,
         });
       }
 
@@ -435,7 +487,7 @@ export default function ShopCategories() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-1">
-          <ShopFiltersComponent filters={filters} onFiltersChange={setFilters} />
+          <HierarchicalShopFilters filters={filters} onFiltersChange={setFilters} />
         </div>
 
         <div className="lg:col-span-3">
@@ -463,7 +515,7 @@ export default function ShopCategories() {
                           <SortButton field="shop_name">Shop Name</SortButton>
                         </TableHead>
                         <TableHead>
-                          <SortButton field="category">Category</SortButton>
+                          <SortButton field="category">Category & Subcategory</SortButton>
                         </TableHead>
                         <TableHead>
                           <SortButton field="created_at">Created On</SortButton>
@@ -486,7 +538,20 @@ export default function ShopCategories() {
                           <TableRow key={shop.id}>
                             <TableCell className="font-medium">{shop.shop_name}</TableCell>
                             <TableCell>
-                              <Badge variant="secondary">{shop.category}</Badge>
+                              <div className="flex items-center gap-2">
+                                <div 
+                                  className="w-3 h-3 rounded-full border" 
+                                  style={{ backgroundColor: '#6366f1' }}
+                                />
+                                <div className="flex flex-col">
+                                  <span className="text-xs text-muted-foreground font-medium">
+                                    {shop.category}
+                                  </span>
+                                  <span className="text-sm">
+                                    {shop.subcategory}
+                                  </span>
+                                </div>
+                              </div>
                             </TableCell>
                             <TableCell className="text-muted-foreground">
                               {format(new Date(shop.created_at), 'MMM dd, yyyy')}

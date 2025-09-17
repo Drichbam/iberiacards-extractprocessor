@@ -64,8 +64,8 @@ export const ShopForm = ({ isOpen, onClose, onSubmit, initialData, mode }: ShopF
           </DialogTitle>
           <DialogDescription>
             {mode === 'create' 
-              ? 'Add a new shop with its category for expense tracking.' 
-              : 'Update the shop name and category information.'}
+              ? 'Add a new shop and assign it to a category and subcategory for expense tracking.' 
+              : 'Update the shop name and its category/subcategory assignment.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -85,25 +85,46 @@ export const ShopForm = ({ isOpen, onClose, onSubmit, initialData, mode }: ShopF
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="subcategory">Subcategory</Label>
+            <Label htmlFor="subcategory">Category & Subcategory</Label>
             <Select value={subcategoryId} onValueChange={setSubcategoryId}>
               <SelectTrigger className={!subcategoryId ? 'border-destructive' : ''}>
-                <SelectValue placeholder="Select a subcategory" />
+                <SelectValue placeholder="Select category and subcategory" />
               </SelectTrigger>
               <SelectContent className="bg-background border shadow-md z-50 max-h-60 overflow-y-auto">
-                {subcategoriesWithCategories.map((subcat) => (
-                  <SelectItem key={subcat.id} value={subcat.id}>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">{subcat.category}</span>
-                      <span>→</span>
-                      <span>{subcat.name}</span>
+                {/* Group subcategories by category */}
+                {(() => {
+                  // Group subcategories by category
+                  const groupedSubcats = subcategoriesWithCategories.reduce((acc, subcat) => {
+                    if (!acc[subcat.category]) {
+                      acc[subcat.category] = [];
+                    }
+                    acc[subcat.category].push(subcat);
+                    return acc;
+                  }, {} as Record<string, typeof subcategoriesWithCategories>);
+
+                  return Object.entries(groupedSubcats).map(([categoryName, subcats]) => (
+                    <div key={categoryName}>
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50 sticky top-0">
+                        {categoryName}
+                      </div>
+                      {subcats.map((subcat) => (
+                        <SelectItem key={subcat.id} value={subcat.id} className="pl-6">
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full border" 
+                              style={{ backgroundColor: subcat.color }}
+                            />
+                            <span>{subcat.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
                     </div>
-                  </SelectItem>
-                ))}
+                  ));
+                })()}
               </SelectContent>
             </Select>
             {!subcategoryId && (
-              <p className="text-sm text-destructive">Subcategory is required</p>
+              <p className="text-sm text-destructive">Category and subcategory selection is required</p>
             )}
           </div>
 
