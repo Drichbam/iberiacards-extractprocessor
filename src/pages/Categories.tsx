@@ -23,8 +23,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 const Categories = () => {
   const navigate = useNavigate();
-  const { categories, loading, createCategory, updateCategory, deleteCategory } = useCategories();
-  const { subcategoriesWithCategories, createSubcategory, updateSubcategory, deleteSubcategory } = useSubcategories();
+  const { categories, loading, createCategory, updateCategory, deleteCategory, refetch: refetchCategories } = useCategories();
+  const { subcategoriesWithCategories, createSubcategory, updateSubcategory, deleteSubcategory, refetch: refetchSubcategories } = useSubcategories();
   const { toast } = useToast();
   
   // Form state for categories
@@ -304,10 +304,8 @@ const Categories = () => {
       
       console.log('Import completed successfully');
       
-      // Refresh the page to reload all data
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      // Refresh the data using hook refetch functions instead of page reload
+      await Promise.all([refetchCategories(), refetchSubcategories()]);
       
       setIsImportDialogOpen(false);
       setParsedImportData(null);
