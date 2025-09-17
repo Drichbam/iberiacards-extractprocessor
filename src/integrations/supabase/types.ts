@@ -40,29 +40,64 @@ export type Database = {
       }
       shops: {
         Row: {
-          category_id: string | null
           created_at: string
           id: string
           modified_at: string
           shop_name: string
+          subcategory_id: string | null
         }
         Insert: {
-          category_id?: string | null
           created_at?: string
           id?: string
           modified_at?: string
           shop_name: string
+          subcategory_id?: string | null
         }
         Update: {
-          category_id?: string | null
           created_at?: string
           id?: string
           modified_at?: string
           shop_name?: string
+          subcategory_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "shops_category_id_fkey"
+            foreignKeyName: "fk_shops_subcategory_id"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "subcategories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subcategories: {
+        Row: {
+          category_id: string
+          color: string
+          created_at: string
+          id: string
+          modified_at: string
+          name: string
+        }
+        Insert: {
+          category_id: string
+          color?: string
+          created_at?: string
+          id?: string
+          modified_at?: string
+          name: string
+        }
+        Update: {
+          category_id?: string
+          color?: string
+          created_at?: string
+          id?: string
+          modified_at?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_subcategories_category_id"
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"

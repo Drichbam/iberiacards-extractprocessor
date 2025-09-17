@@ -116,7 +116,7 @@ export const useCategories = () => {
       const { data: shopsUsingCategory, error: checkError } = await supabase
         .from('shops')
         .select('id')
-        .eq('category_id', id);
+        .eq('subcategory_id', id);
 
       if (checkError) throw checkError;
 
@@ -133,8 +133,8 @@ export const useCategories = () => {
         // Update shops to use "Uncategorized" category
         const { error: updateError } = await supabase
           .from('shops')
-          .update({ category_id: uncategorizedCategory.id })
-          .eq('category_id', id);
+          .update({ subcategory_id: uncategorizedCategory.id })
+          .eq('subcategory_id', id);
 
         if (updateError) throw updateError;
       }

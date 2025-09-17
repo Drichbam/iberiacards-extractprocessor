@@ -15,9 +15,11 @@ export const useShops = () => {
         .from('shops')
         .select(`
           *,
-          categories!category_id (
+          subcategories!subcategory_id (
+            id,
             name,
-            color
+            color,
+            category:categories(id, name, color)
           )
         `)
         .order('shop_name', { ascending: true });
@@ -27,7 +29,7 @@ export const useShops = () => {
       // Transform the data to include category name for backwards compatibility
       const transformedData = data?.map(shop => ({
         ...shop,
-        category: shop.categories?.name || 'Uncategorized'
+        category: shop.subcategories?.name || 'Uncategorized'
       })) || [];
       
       setShops(transformedData);
@@ -50,9 +52,11 @@ export const useShops = () => {
         .insert([shopData])
         .select(`
           *,
-          categories!category_id (
+          subcategories!subcategory_id (
+            id,
             name,
-            color
+            color,
+            category:categories(id, name, color)
           )
         `)
         .single();
@@ -71,7 +75,7 @@ export const useShops = () => {
 
       const transformedData = {
         ...data,
-        category: data.categories?.name || 'Uncategorized'
+        category: data.subcategories?.name || 'Uncategorized'
       };
 
       setShops(prev => [...prev, transformedData].sort((a, b) => a.shop_name.localeCompare(b.shop_name)));
@@ -100,9 +104,11 @@ export const useShops = () => {
         .eq('id', id)
         .select(`
           *,
-          categories!category_id (
+          subcategories!subcategory_id (
+            id,
             name,
-            color
+            color,
+            category:categories(id, name, color)
           )
         `)
         .single();
@@ -121,7 +127,7 @@ export const useShops = () => {
 
       const transformedData = {
         ...data,
-        category: data.categories?.name || 'Uncategorized'
+        category: data.subcategories?.name || 'Uncategorized'
       };
 
       setShops(prev => 

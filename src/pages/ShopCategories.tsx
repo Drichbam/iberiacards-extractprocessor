@@ -340,7 +340,7 @@ export default function ShopCategories() {
 
         shopDataWithIds.push({
           shop_name: csvShop.shop_name,
-          category_id: category.id,
+          subcategory_id: category.id,
         });
       }
 
