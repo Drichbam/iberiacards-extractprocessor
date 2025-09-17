@@ -1,20 +1,21 @@
 export interface Shop {
   id: string;
   shop_name: string;
-  category_id: string;
+  subcategory_id: string | null;
   category?: string; // For backwards compatibility with joined data
+  subcategory?: string; // For display purposes
   created_at: string;
   modified_at: string;
 }
 
 export interface CreateShopRequest {
   shop_name: string;
-  category_id: string;
+  subcategory_id: string;
 }
 
 export interface UpdateShopRequest {
   shop_name: string;
-  category_id: string;
+  subcategory_id: string;
 }
 
 export const SHOP_CATEGORIES = [

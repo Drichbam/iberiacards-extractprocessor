@@ -6,9 +6,13 @@ export const fetchShops = async (): Promise<Shop[]> => {
     .from('shops')
     .select(`
       *,
-      categories!category_id (
+      subcategories!subcategory_id (
         name,
-        color
+        color,
+        categories!category_id (
+          name,
+          color
+        )
       )
     `);
     
@@ -20,7 +24,7 @@ export const fetchShops = async (): Promise<Shop[]> => {
   // Transform the data to include category name for backwards compatibility
   const transformedShops = shops?.map(shop => ({
     ...shop,
-    category: (shop as any).categories?.name || 'Uncategorized'
+    category: shop.subcategories?.categories?.name || 'Uncategorized'
   })) || [];
   
   console.log('Fetched shops for expense processing:', transformedShops.length, transformedShops.slice(0, 3));

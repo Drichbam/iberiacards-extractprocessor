@@ -19,9 +19,13 @@ const Index = () => {
       .from('shops')
       .select(`
         *,
-        categories!category_id (
+        subcategories!subcategory_id (
           name,
-          color
+          color,
+          categories!category_id (
+            name,
+            color
+          )
         )
       `);
     
@@ -33,8 +37,8 @@ const Index = () => {
     // Transform the data to include category name and color for backwards compatibility
     const transformedShops = shops?.map(shop => ({
       ...shop,
-      category: (shop as any).categories?.name || 'Uncategorized',
-      categoryColor: (shop as any).categories?.color || 'hsl(var(--primary))'
+      category: shop.subcategories?.categories?.name || 'Uncategorized',
+      categoryColor: shop.subcategories?.categories?.color || 'hsl(var(--primary))'
     })) || [];
     
     setShops(transformedShops);
@@ -89,9 +93,13 @@ const Index = () => {
             .from('shops')
             .select(`
               *,
-              categories!category_id (
+              subcategories!subcategory_id (
                 name,
-                color
+                color,
+                categories!category_id (
+                  name,
+                  color
+                )
               )
             `);
           
@@ -103,8 +111,8 @@ const Index = () => {
           // Transform the data to include category name and color
           const transformedShops = updatedShops?.map(shop => ({
             ...shop,
-            category: (shop as any).categories?.name || 'Uncategorized',
-            categoryColor: (shop as any).categories?.color || 'hsl(var(--primary))'
+            category: shop.subcategories?.categories?.name || 'Uncategorized',
+            categoryColor: shop.subcategories?.categories?.color || 'hsl(var(--primary))'
           })) || [];
           
           setShops(transformedShops);

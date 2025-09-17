@@ -112,28 +112,28 @@ export const useCategories = () => {
 
   const deleteCategory = async (id: string, categoryName: string) => {
     try {
-      // First check if any shops are using this category
-      const { data: shopsUsingCategory, error: checkError } = await supabase
-        .from('shops')
+      // First check if any subcategories are using this category
+      const { data: subcategoriesUsingCategory, error: checkError } = await supabase
+        .from('subcategories')
         .select('id')
         .eq('category_id', id);
 
       if (checkError) throw checkError;
 
-      if (shopsUsingCategory && shopsUsingCategory.length > 0) {
-        // Get the "Uncategorized" category
-        const { data: uncategorizedCategory, error: uncategorizedError } = await supabase
+      if (subcategoriesUsingCategory && subcategoriesUsingCategory.length > 0) {
+        // Get the "Otros gastos" category as default
+        const { data: defaultCategory, error: defaultError } = await supabase
           .from('categories')
           .select('id')
-          .eq('name', 'Uncategorized')
+          .eq('name', 'Otros gastos')
           .single();
 
-        if (uncategorizedError) throw uncategorizedError;
+        if (defaultError) throw defaultError;
 
-        // Update shops to use "Uncategorized" category
+        // Update subcategories to use "Otros gastos" category
         const { error: updateError } = await supabase
-          .from('shops')
-          .update({ category_id: uncategorizedCategory.id })
+          .from('subcategories')
+          .update({ category_id: defaultCategory.id })
           .eq('category_id', id);
 
         if (updateError) throw updateError;
@@ -150,7 +150,7 @@ export const useCategories = () => {
       setCategories(prev => prev.filter(category => category.id !== id));
       toast({
         title: "Success",
-        description: `"${categoryName}" deleted successfully${shopsUsingCategory && shopsUsingCategory.length > 0 ? '. Associated shops moved to "Uncategorized".' : ''}`,
+        description: `"${categoryName}" deleted successfully${subcategoriesUsingCategory && subcategoriesUsingCategory.length > 0 ? '. Associated subcategories moved to "Otros gastos".' : ''}`,
         variant: "success",
       });
       return true;
