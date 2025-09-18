@@ -27,6 +27,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
   const [sortField, setSortField] = useState<SortField>('fecha');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [selectedCategoryForSubcategories, setSelectedCategoryForSubcategories] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleSort = (field: SortField) => {
@@ -240,7 +241,20 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                     </TableHeader>
                     <TableBody>
                       {categoryData.map((item, index) => (
-                        <TableRow key={item.name} className="hover:bg-muted/30">
+                        <TableRow 
+                          key={item.name} 
+                          className={cn(
+                            "hover:bg-muted/30 cursor-pointer transition-colors",
+                            selectedCategoryForSubcategories === item.name && "bg-primary/10 border-l-4 border-l-primary"
+                          )}
+                          onClick={() => {
+                            if (selectedCategoryForSubcategories === item.name) {
+                              setSelectedCategoryForSubcategories(null);
+                            } else {
+                              setSelectedCategoryForSubcategories(item.name);
+                            }
+                          }}
+                        >
                           <TableCell className="w-12">
                             <div 
                               className="w-4 h-4 rounded-sm border border-border" 
@@ -327,10 +341,34 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
 
       {/* Subcategory Breakdown */}
       <div className="mb-6 p-4 rounded-lg border bg-muted/30">
-        <h3 className="font-semibold text-foreground mb-4">Spending by Subcategory</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-foreground">
+            Spending by Subcategory
+            {selectedCategoryForSubcategories && (
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                (filtered by {selectedCategoryForSubcategories})
+              </span>
+            )}
+          </h3>
+          {selectedCategoryForSubcategories && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedCategoryForSubcategories(null)}
+              className="text-xs"
+            >
+              Clear Filter
+            </Button>
+          )}
+        </div>
         
         {(() => {
-          const subcategoryTotals = expenses.reduce((acc, expense) => {
+          // Filter expenses by selected category if one is selected
+          const filteredExpensesForSubcategories = selectedCategoryForSubcategories 
+            ? expenses.filter(expense => expense.categoria === selectedCategoryForSubcategories)
+            : expenses;
+
+          const subcategoryTotals = filteredExpensesForSubcategories.reduce((acc, expense) => {
             const amount = parseFloat(expense.importe.replace(',', '.')) || 0;
             acc[expense.subcategoria] = (acc[expense.subcategoria] || 0) + amount;
             return acc;
