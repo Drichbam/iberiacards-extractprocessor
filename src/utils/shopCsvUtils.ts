@@ -48,10 +48,31 @@ export const parseShopsFromCSV = (csvContent: string): ShopCSVData[] => {
     throw new Error('CSV file is empty');
   }
 
-  // Check if we have the new format with subcategory column
+  // Parse header line and detect column positions
   const headerLine = lines[0];
   const headers = parseCSVLine(headerLine).map(h => h.trim().toLowerCase());
-  const hasSubcategoryColumn = headers.includes('subcategory');
+  
+  // Detect column positions for different formats
+  const shopNameIndex = headers.findIndex(h => 
+    h.includes('shop name') || h.includes('shop label') || h === 'shop_name'
+  );
+  const categoryIndex = headers.findIndex(h => 
+    h.includes('category') && !h.includes('subcategory')
+  );
+  const subcategoryIndex = headers.findIndex(h => 
+    h.includes('subcategory')
+  );
+
+  console.log('CSV Headers detected:', headers);
+  console.log('Column mapping - Shop:', shopNameIndex, 'Category:', categoryIndex, 'Subcategory:', subcategoryIndex);
+
+  // Validate that we found the required columns
+  if (shopNameIndex === -1) {
+    throw new Error('Could not find shop name column. Expected: "Shop Name" or "Shop Label"');
+  }
+  if (categoryIndex === -1) {
+    throw new Error('Could not find category column. Expected: "Category"');
+  }
 
   // Skip header row
   const dataLines = lines.slice(1);
@@ -67,18 +88,15 @@ export const parseShopsFromCSV = (csvContent: string): ShopCSVData[] => {
       // Parse CSV line handling quoted values
       const values = parseCSVLine(line);
       
-      const requiredColumns = hasSubcategoryColumn ? 3 : 2;
-      if (values.length < requiredColumns) {
-        const expectedFormat = hasSubcategoryColumn ? 
-          'Shop Name, Category, Subcategory' : 
-          'Shop Name, Category';
-        errors.push(`Line ${lineNumber}: Missing required columns (expected: ${expectedFormat})`);
+      // Check minimum number of columns
+      if (values.length <= Math.max(shopNameIndex, categoryIndex)) {
+        errors.push(`Line ${lineNumber}: Missing required columns`);
         return;
       }
 
-      const shopName = values[0]?.trim();
-      const category = values[1]?.trim();
-      const subcategory = hasSubcategoryColumn ? values[2]?.trim() : undefined;
+      const shopName = values[shopNameIndex]?.trim();
+      const category = values[categoryIndex]?.trim();
+      const subcategory = subcategoryIndex !== -1 ? values[subcategoryIndex]?.trim() : undefined;
 
       if (!shopName) {
         errors.push(`Line ${lineNumber}: Shop name is required`);
@@ -90,10 +108,27 @@ export const parseShopsFromCSV = (csvContent: string): ShopCSVData[] => {
         return;
       }
 
+      // If no subcategory column exists, treat category as subcategory 
+      // and use "Imported Categories" as the default parent category
+      let finalCategory: string;
+      let finalSubcategory: string | undefined;
+      
+      if (subcategoryIndex === -1) {
+        // No subcategory column - treat category as subcategory
+        finalCategory = 'Imported Categories';
+        finalSubcategory = category;
+      } else {
+        // Has subcategory column - use category as category and subcategory as subcategory
+        finalCategory = category;
+        finalSubcategory = subcategory;
+      }
+
+      console.log(`Processing line ${lineNumber}: Shop="${shopName}", Category="${finalCategory}", Subcategory="${finalSubcategory}"`);
+
       shops.push({
         shop_name: shopName,
-        category_name: category, // Store category name, will be resolved to ID later
-        subcategory_name: subcategory || undefined,
+        category_name: finalCategory,
+        subcategory_name: finalSubcategory,
       });
     } catch (error) {
       errors.push(`Line ${lineNumber}: Failed to parse - ${error instanceof Error ? error.message : 'Unknown error'}`);
