@@ -196,7 +196,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
 
       {/* Subcategory Breakdown */}
       <div className="mb-6 p-4 rounded-lg border bg-muted/30">
-        <h3 className="font-semibold text-foreground mb-4">Spending by Subcategory</h3>
+        <h3 className="font-semibold text-foreground mb-4">Spending by Category</h3>
         
         {(() => {
           const categoryTotals = expenses.reduce((acc, expense) => {
@@ -233,7 +233,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                     <TableHeader>
                       <TableRow className="bg-muted border-b-2 border-border">
                         <TableHead className="font-bold text-foreground w-12">Color</TableHead>
-                        <TableHead className="font-bold text-foreground">Subcategory</TableHead>
+                        <TableHead className="font-bold text-foreground">Category</TableHead>
                         <TableHead className="font-bold text-foreground text-right">Percentage</TableHead>
                         <TableHead className="font-bold text-foreground text-right">Amount</TableHead>
                       </TableRow>
@@ -381,7 +381,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
               </TableHead>
               <TableHead className="font-bold text-foreground">
                 <div className="flex items-center gap-2">
-                  <SortButton field="categoria">Subcategory</SortButton>
+                  <SortButton field="categoria">Category</SortButton>
                   <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                     <SelectTrigger className="w-[150px] h-7 text-xs">
                       <div className="flex items-center gap-1">
