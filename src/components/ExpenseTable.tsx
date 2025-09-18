@@ -27,6 +27,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
   const [sortField, setSortField] = useState<SortField>('fecha');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [subcategoryFilter, setSubcategoryFilter] = useState<string>('all');
   const [selectedCategoryForSubcategories, setSelectedCategoryForSubcategories] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -39,10 +40,12 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
     }
   };
 
-  // Filter expenses by category
-  const filteredExpenses = categoryFilter === 'all' 
-    ? expenses 
-    : expenses.filter(expense => expense.categoria === categoryFilter);
+  // Filter expenses by category and subcategory
+  const filteredExpenses = expenses.filter(expense => {
+    const categoryMatch = categoryFilter === 'all' || expense.categoria === categoryFilter;
+    const subcategoryMatch = subcategoryFilter === 'all' || expense.subcategoria === subcategoryFilter;
+    return categoryMatch && subcategoryMatch;
+  });
 
   const sortedExpenses = [...filteredExpenses].sort((a, b) => {
     const aValue = a[sortField];
@@ -143,9 +146,12 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
           </h2>
           <p className="text-muted-foreground">
             {filteredExpenses.length} of {expenses.length} transactions
-            {categoryFilter !== 'all' && (
+            {(categoryFilter !== 'all' || subcategoryFilter !== 'all') && (
               <span className="ml-2 text-xs">
-                (filtered by {categoryFilter})
+                (filtered by{' '}
+                {categoryFilter !== 'all' && `category: ${categoryFilter}`}
+                {categoryFilter !== 'all' && subcategoryFilter !== 'all' && ', '}
+                {subcategoryFilter !== 'all' && `subcategory: ${subcategoryFilter}`})
               </span>
             )}
           </p>
@@ -350,16 +356,28 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
               </span>
             )}
           </h3>
-          {selectedCategoryForSubcategories && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSelectedCategoryForSubcategories(null)}
-              className="text-xs"
-            >
-              Clear Filter
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {selectedCategoryForSubcategories && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedCategoryForSubcategories(null)}
+                className="text-xs"
+              >
+                Clear Category Filter
+              </Button>
+            )}
+            {subcategoryFilter !== 'all' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSubcategoryFilter('all')}
+                className="text-xs"
+              >
+                Clear Subcategory Filter
+              </Button>
+            )}
+          </div>
         </div>
         
         {(() => {
@@ -411,7 +429,20 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                     </TableHeader>
                     <TableBody>
                       {subcategoryData.map((item, index) => (
-                        <TableRow key={item.name} className="hover:bg-muted/30">
+                        <TableRow 
+                          key={item.name} 
+                          className={cn(
+                            "hover:bg-muted/30 cursor-pointer transition-colors",
+                            subcategoryFilter === item.name && "bg-primary/10 border-l-4 border-l-primary"
+                          )}
+                          onClick={() => {
+                            if (subcategoryFilter === item.name) {
+                              setSubcategoryFilter('all');
+                            } else {
+                              setSubcategoryFilter(item.name);
+                            }
+                          }}
+                        >
                           <TableCell className="w-12">
                             <div 
                               className="w-4 h-4 rounded-sm border border-border" 
@@ -551,7 +582,27 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                 <SortButton field="importe">Amount</SortButton>
               </TableHead>
               <TableHead className="font-bold text-foreground">
-                <SortButton field="subcategoria">Subcategory</SortButton>
+                <div className="flex items-center gap-2">
+                  <SortButton field="subcategoria">Subcategory</SortButton>
+                  <Select value={subcategoryFilter} onValueChange={setSubcategoryFilter}>
+                    <SelectTrigger className="w-[150px] h-7 text-xs">
+                      <div className="flex items-center gap-1">
+                        <Filter className="h-3 w-3" />
+                        <SelectValue placeholder="All" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Subcategories</SelectItem>
+                      {[...new Set(expenses.map(expense => expense.subcategoria))]
+                        .sort()
+                        .map(subcategory => (
+                          <SelectItem key={subcategory} value={subcategory}>
+                            <span className="truncate max-w-[120px]">{subcategory}</span>
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </TableHead>
               <TableHead className="font-bold text-foreground">
                 <div className="flex items-center gap-2">
