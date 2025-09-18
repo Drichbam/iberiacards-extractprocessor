@@ -194,14 +194,18 @@ const Categories = () => {
   // Import handlers
   const handleFileUpload = async (file: File) => {
     try {
+      console.log('🚀 Starting file upload process...', file.name);
       setIsProcessingImport(true);
       const content = await file.text();
+      console.log('📝 File content loaded, size:', content.length);
       const parsed = parseHierarchicalCSV(content, categories, true); // Ignore colors
+      console.log('🎉 File parsed successfully!');
       
       setImportFile(file);
       setParsedImportData(parsed);
       setIsImportDialogOpen(true);
     } catch (error) {
+      console.error('❌ File upload failed:', error);
       toast({
         title: "Import Error",
         description: error instanceof Error ? error.message : "Failed to parse CSV file",
@@ -211,12 +215,6 @@ const Categories = () => {
       setIsProcessingImport(false);
     }
   };
-
-  const handleImportConfirm = async () => {
-    if (!parsedImportData) return;
-
-    try {
-      setIsProcessingImport(true);
 
   const handleImportConfirm = async () => {
     if (!parsedImportData) return;
@@ -312,26 +310,6 @@ const Categories = () => {
       setImportFile(null);
     } catch (error) {
       console.error('Import failed:', error);
-      toast({
-        title: "Import Failed",
-        description: error instanceof Error ? error.message : "Failed to import data",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessingImport(false);
-    }
-  };
-
-      toast({
-        title: "Import Successful",
-        description: `Imported ${parsedImportData.categories.length} categories and ${parsedImportData.subcategories.length} subcategories.`,
-        variant: "default",
-      });
-      
-      setIsImportDialogOpen(false);
-      setParsedImportData(null);
-      setImportFile(null);
-    } catch (error) {
       toast({
         title: "Import Failed",
         description: error instanceof Error ? error.message : "Failed to import data",

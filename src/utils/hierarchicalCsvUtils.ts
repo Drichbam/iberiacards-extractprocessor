@@ -58,7 +58,9 @@ export const parseHierarchicalCSV = (csvContent: string, existingCategories: Cat
   categories: CreateCategoryRequest[];
   subcategories: (CreateSubcategoryRequest & { category_name: string })[];
 } => {
+  console.log('🔧 Starting CSV parsing...');
   const lines = csvContent.split('\n').filter(line => line.trim());
+  console.log(`📄 Found ${lines.length} lines in CSV`);
   
   if (lines.length === 0) {
     throw new Error('CSV file is empty');
@@ -67,9 +69,11 @@ export const parseHierarchicalCSV = (csvContent: string, existingCategories: Cat
   // Parse header to determine column positions
   const headerLine = lines[0];
   const headers = parseCSVLine(headerLine).map(h => h.trim().toLowerCase());
+  console.log('📋 Headers found:', headers);
   
   const categoryNameIndex = headers.findIndex(h => h.includes('category') && h.includes('name'));
   const subcategoryNameIndex = headers.findIndex(h => h.includes('subcategory') && h.includes('name'));
+  console.log(`🎯 Column indices - Category: ${categoryNameIndex}, Subcategory: ${subcategoryNameIndex}`);
   
   if (categoryNameIndex === -1) {
     throw new Error('CSV must contain a "Category Name" column');
@@ -152,10 +156,16 @@ export const parseHierarchicalCSV = (csvContent: string, existingCategories: Cat
     throw new Error('No valid category data found in CSV file');
   }
 
-  return {
+  const result = {
     categories: Array.from(categoriesMap.values()),
     subcategories,
   };
+  
+  console.log(`✅ Parsing complete: ${result.categories.length} categories, ${result.subcategories.length} subcategories`);
+  console.log('Categories:', result.categories.map(c => c.name));
+  console.log('Subcategories:', result.subcategories.map(s => `${s.name} (${s.category_name})`));
+  
+  return result;
 };
 
 // Helper function to validate hex colors
