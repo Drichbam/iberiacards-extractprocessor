@@ -21,10 +21,11 @@ export const fetchShops = async (): Promise<Shop[]> => {
     return [];
   }
   
-  // Transform the data to include category name for backwards compatibility
+  // Transform the data to include category and subcategory names
   const transformedShops = shops?.map(shop => ({
     ...shop,
-    category: shop.subcategories?.categories?.name || 'Uncategorized'
+    category: shop.subcategories?.categories?.name || 'Uncategorized',
+    subcategory: shop.subcategories?.name || 'Uncategorized'
   })) || [];
   
   console.log('Fetched shops for expense processing:', transformedShops.length, transformedShops.slice(0, 3));

@@ -4,4 +4,5 @@ export interface ExpenseData {
   comercio: string;
   importe: string;
   categoria: string;
+  subcategoria: string;
 }

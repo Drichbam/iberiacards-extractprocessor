@@ -380,6 +380,9 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                 <SortButton field="importe">Amount</SortButton>
               </TableHead>
               <TableHead className="font-bold text-foreground">
+                <SortButton field="subcategoria">Subcategory</SortButton>
+              </TableHead>
+              <TableHead className="font-bold text-foreground">
                 <div className="flex items-center gap-2">
                   <SortButton field="categoria">Category</SortButton>
                   <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -424,6 +427,9 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                 </TableCell>
                 <TableCell className="text-right font-semibold">
                   €{expense.importe}
+                </TableCell>
+                <TableCell className="max-w-xs truncate">
+                  {expense.subcategoria}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">

@@ -38,6 +38,7 @@ const Index = () => {
     const transformedShops = shops?.map(shop => ({
       ...shop,
       category: shop.subcategories?.categories?.name || 'Uncategorized',
+      subcategory: shop.subcategories?.name || 'Uncategorized',
       categoryColor: shop.subcategories?.categories?.color || 'hsl(var(--primary))'
     })) || [];
     
@@ -50,7 +51,8 @@ const Index = () => {
       const matchedShop = updatedShops.find(shop => shop.shop_name === expense.comercio);
       return {
         ...expense,
-        categoria: matchedShop ? matchedShop.category : 'Otros gastos (otros)'
+        categoria: matchedShop ? matchedShop.category : 'Otros gastos (otros)',
+        subcategoria: matchedShop ? matchedShop.subcategory : 'Otros gastos (otros)'
       };
     });
   };
@@ -108,10 +110,11 @@ const Index = () => {
             return;
           }
           
-          // Transform the data to include category name and color
+          // Transform the data to include category name and subcategory
           const transformedShops = updatedShops?.map(shop => ({
             ...shop,
             category: shop.subcategories?.categories?.name || 'Uncategorized',
+            subcategory: shop.subcategories?.name || 'Uncategorized',
             categoryColor: shop.subcategories?.categories?.color || 'hsl(var(--primary))'
           })) || [];
           

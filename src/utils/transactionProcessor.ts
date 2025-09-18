@@ -64,6 +64,7 @@ export const processCardTransactions = (
       // Categorize the transaction using shops database (exact match, case sensitive)
       const matchedShop = shops.find(shop => shop.shop_name === merchant);
       const category = matchedShop?.category || 'Otros gastos (otros)';
+      const subcategory = matchedShop?.subcategory || 'Otros gastos (otros)';
       
       // Debug logging for categorization issues
       if (!matchedShop && merchant && merchant !== 'undefined') {
@@ -78,6 +79,7 @@ export const processCardTransactions = (
         comercio: merchant,
         importe: cleanAmount,
         categoria: category,
+        subcategoria: subcategory,
       });
     }
   }
