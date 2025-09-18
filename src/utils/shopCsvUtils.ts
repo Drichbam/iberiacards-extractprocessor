@@ -2,7 +2,8 @@ import { Shop } from '@/types/shop';
 
 export interface ShopCSVData {
   shop_name: string;
-  subcategory_name: string;
+  category_name: string;
+  subcategory_name?: string;
 }
 
 export const exportShopsToCSV = (shops: Shop[]) => {
@@ -47,26 +48,10 @@ export const parseShopsFromCSV = (csvContent: string): ShopCSVData[] => {
     throw new Error('CSV file is empty');
   }
 
-  // Parse header to find required columns
+  // Check if we have the new format with subcategory column
   const headerLine = lines[0];
   const headers = parseCSVLine(headerLine).map(h => h.trim().toLowerCase());
-  
-  // Find column indexes - support various naming conventions
-  const shopNameIndex = headers.findIndex(h => 
-    h.includes('shop name') || h.includes('shop_name') || h.includes('shop label')
-  );
-  const subcategoryIndex = headers.findIndex(h => 
-    h.includes('subcategory name') || h.includes('subcategory_name') || 
-    h.includes('subcategory') || h.includes('category')
-  );
-
-  if (shopNameIndex === -1) {
-    throw new Error('Required column "Shop Name" not found. Please ensure your CSV has a column with "Shop Name", "Shop_Name", or "Shop Label".');
-  }
-
-  if (subcategoryIndex === -1) {
-    throw new Error('Required column "Subcategory Name" not found. Please ensure your CSV has a column with "Subcategory Name", "Subcategory_Name", "Subcategory", or "Category".');
-  }
+  const hasSubcategoryColumn = headers.includes('subcategory');
 
   // Skip header row
   const dataLines = lines.slice(1);
@@ -82,27 +67,33 @@ export const parseShopsFromCSV = (csvContent: string): ShopCSVData[] => {
       // Parse CSV line handling quoted values
       const values = parseCSVLine(line);
       
-      if (values.length <= Math.max(shopNameIndex, subcategoryIndex)) {
-        errors.push(`Line ${lineNumber}: Missing required columns`);
+      const requiredColumns = hasSubcategoryColumn ? 3 : 2;
+      if (values.length < requiredColumns) {
+        const expectedFormat = hasSubcategoryColumn ? 
+          'Shop Name, Category, Subcategory' : 
+          'Shop Name, Category';
+        errors.push(`Line ${lineNumber}: Missing required columns (expected: ${expectedFormat})`);
         return;
       }
 
-      const shopName = values[shopNameIndex]?.trim();
-      const subcategoryName = values[subcategoryIndex]?.trim();
+      const shopName = values[0]?.trim();
+      const category = values[1]?.trim();
+      const subcategory = hasSubcategoryColumn ? values[2]?.trim() : undefined;
 
       if (!shopName) {
         errors.push(`Line ${lineNumber}: Shop name is required`);
         return;
       }
 
-      if (!subcategoryName) {
-        errors.push(`Line ${lineNumber}: Subcategory name is required`);
+      if (!category) {
+        errors.push(`Line ${lineNumber}: Category is required`);
         return;
       }
 
       shops.push({
         shop_name: shopName,
-        subcategory_name: subcategoryName,
+        category_name: category, // Store category name, will be resolved to ID later
+        subcategory_name: subcategory || undefined,
       });
     } catch (error) {
       errors.push(`Line ${lineNumber}: Failed to parse - ${error instanceof Error ? error.message : 'Unknown error'}`);
