@@ -194,7 +194,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
         </div>
       </div>
 
-      {/* Subcategory Breakdown */}
+      {/* Category Breakdown */}
       <div className="mb-6 p-4 rounded-lg border bg-muted/30">
         <h3 className="font-semibold text-foreground mb-4">Spending by Category</h3>
         
@@ -290,6 +290,139 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
                       >
                         {categoryData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={getCategoryColorForPie(entry.name)} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length > 0) {
+                            const data = payload[0];
+                            const category = data.payload?.name || 'Unknown';
+                            const value = Number(data.value) || 0;
+                            const percentage = data.payload?.percentage || 0;
+                            return (
+                              <div className="bg-background border border-border rounded-lg p-3 shadow-lg max-w-xs">
+                                <p className="font-bold text-foreground text-base mb-2">
+                                  {category}
+                                </p>
+                                <p className="text-primary font-semibold text-sm">
+                                  €{value.toFixed(2)}
+                                </p>
+                                <p className="text-muted-foreground text-sm">
+                                  {percentage.toFixed(1)}% of total spending
+                                </p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* Subcategory Breakdown */}
+      <div className="mb-6 p-4 rounded-lg border bg-muted/30">
+        <h3 className="font-semibold text-foreground mb-4">Spending by Subcategory</h3>
+        
+        {(() => {
+          const subcategoryTotals = expenses.reduce((acc, expense) => {
+            const amount = parseFloat(expense.importe.replace(',', '.')) || 0;
+            acc[expense.subcategoria] = (acc[expense.subcategoria] || 0) + amount;
+            return acc;
+          }, {} as Record<string, number>);
+          
+          const grandTotal = Object.values(subcategoryTotals).reduce((sum, amount) => sum + amount, 0);
+          
+          const subcategoryData = Object.entries(subcategoryTotals)
+            .sort(([,a], [,b]) => b - a)
+            .map(([subcategory, total]) => {
+              const percentage = grandTotal > 0 ? (total / grandTotal) * 100 : 0;
+              return {
+                name: subcategory,
+                value: total,
+                percentage: percentage
+              };
+            });
+
+          // Generate colors for subcategories using a color palette
+          const generateSubcategoryColor = (index: number) => {
+            const hues = [210, 340, 120, 30, 270, 180, 60, 300, 0, 150, 240, 90];
+            const hue = hues[index % hues.length];
+            return `hsl(${hue}, 70%, 50%)`;
+          };
+          
+          return (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Table */}
+              <div>
+                <h4 className="font-medium text-foreground mb-3">Summary Table</h4>
+                <div className="rounded-lg border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted border-b-2 border-border">
+                        <TableHead className="font-bold text-foreground w-12">Color</TableHead>
+                        <TableHead className="font-bold text-foreground">Subcategory</TableHead>
+                        <TableHead className="font-bold text-foreground text-right">Percentage</TableHead>
+                        <TableHead className="font-bold text-foreground text-right">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {subcategoryData.map((item, index) => (
+                        <TableRow key={item.name} className="hover:bg-muted/30">
+                          <TableCell className="w-12">
+                            <div 
+                              className="w-4 h-4 rounded-sm border border-border" 
+                              style={{ backgroundColor: generateSubcategoryColor(index) }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant="secondary" 
+                              className="text-xs"
+                            >
+                              {item.name}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {item.percentage.toFixed(1)}%
+                          </TableCell>
+                          <TableCell className="text-right font-bold">
+                            €{item.value.toFixed(2)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* Pie Chart */}
+              <div>
+                <h4 className="font-medium text-foreground mb-3">Visual Distribution</h4>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={subcategoryData}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={100}
+                        innerRadius={40}
+                        fill="hsl(var(--primary))"
+                        dataKey="value"
+                        label={({ percentage, index }) => {
+                          if (percentage < 5) return '';
+                          return `${percentage.toFixed(1)}%`;
+                        }}
+                        labelLine={false}
+                      >
+                        {subcategoryData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={generateSubcategoryColor(index)} />
                         ))}
                       </Pie>
                       <Tooltip 
