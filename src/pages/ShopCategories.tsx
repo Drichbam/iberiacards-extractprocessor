@@ -274,33 +274,49 @@ export default function ShopCategories() {
         await Promise.all(deletePromises);
       }
 
-      // Get all unique subcategory names from CSV
-      const uniqueSubcategoryNames = [...new Set(csvShops
-        .filter(shop => shop.subcategory_name)
-        .map(shop => shop.subcategory_name!)
-      )];
-      
-      const createdCategories: string[] = [];
-      const createdSubcategories: string[] = [];
+  // Get all unique category names from CSV
+  const uniqueCategoryNames = [...new Set(csvShops.map(shop => shop.category_name))];
+  // Get all unique subcategory names from CSV (for new format)
+  const uniqueSubcategoryNames = [...new Set(csvShops
+    .filter(shop => shop.subcategory_name)
+    .map(shop => shop.subcategory_name!)
+  )];
+  
+  const createdCategories: string[] = [];
 
-      // Ensure "Unknown Category" exists
-      let unknownCategory = categories.find(cat => cat.name === 'Unknown Category');
-      if (!unknownCategory) {
-        const { data: newUnknownCategory, error } = await supabase
-          .from('categories')
-          .insert([{
-            name: 'Unknown Category',
-            color: DistinctColorGenerator.getNextCategoryColor(categories),
-          }])
-          .select()
-          .single();
+      // Pre-create all missing categories to avoid race conditions
+      const existingColors = categories.map(cat => cat.color);
+      const newCategoryColors = DistinctColorGenerator.generateMultipleDistinctColors(
+        uniqueCategoryNames.filter(name => !categories.find(cat => cat.name === name)).length,
+        existingColors
+      );
+      let colorIndex = 0;
 
-        if (error && error.code !== '23505') {
-          throw new Error(`Failed to create Unknown Category: ${error.message}`);
-        }
+      for (const categoryName of uniqueCategoryNames) {
+        const existingCategory = categories.find(cat => cat.name === categoryName);
+        if (!existingCategory) {
+          try {
+            const color = newCategoryColors[colorIndex++] || DistinctColorGenerator.getNextCategoryColor(categories);
 
-        if (newUnknownCategory) {
-          createdCategories.push('Unknown Category');
+            const { data, error } = await supabase
+              .from('categories')
+              .insert([{
+                name: categoryName,
+                color: color,
+              }])
+              .select()
+              .single();
+
+            if (error && error.code !== '23505') { // Ignore duplicate errors
+              throw error;
+            }
+
+            if (data || error.code === '23505') {
+              createdCategories.push(categoryName);
+            }
+          } catch (error) {
+            console.warn(`Failed to create category "${categoryName}":`, error);
+          }
         }
       }
 
@@ -344,66 +360,34 @@ export default function ShopCategories() {
         throw new Error('Default subcategory "Otros gastos (otros)" not found');
       }
 
-      // Enhanced mapping to handle subcategory matching and creation
+      // Enhanced mapping to handle both category-only and category+subcategory imports
       const shopDataWithIds: CreateShopRequest[] = [];
       
       for (const csvShop of csvShops) {
         let subcategoryId: string;
         
         if (csvShop.subcategory_name) {
-          // Look for existing subcategory with this name
-          const existingSubcategory = updatedSubcategories?.find(sub => 
-            sub.name === csvShop.subcategory_name
+          // New format: Look for specific subcategory
+          const subcategory = updatedSubcategories?.find(sub => 
+            sub.name === csvShop.subcategory_name && 
+            sub.categories?.name === csvShop.category_name
           );
           
-          if (existingSubcategory) {
-            // Found existing subcategory, use it
-            subcategoryId = existingSubcategory.id;
+          if (subcategory) {
+            subcategoryId = subcategory.id;
           } else {
-            // Subcategory doesn't exist, create it under "Unknown Category"
-            const unknownCategory = updatedCategories?.find(cat => cat.name === 'Unknown Category');
-            
-            if (!unknownCategory) {
-              throw new Error('Unknown Category not found');
-            }
-
-            // Create the new subcategory
-            const { data: newSubcategory, error } = await supabase
-              .from('subcategories')
-              .insert([{
-                name: csvShop.subcategory_name,
-                category_id: unknownCategory.id,
-                color: DistinctColorGenerator.getNextCategoryColor(categories),
-              }])
-              .select()
-              .single();
-
-            if (error) {
-              if (error.code === '23505') {
-                // Subcategory was created by another process, fetch it
-                const { data: fetchedSub, error: fetchError } = await supabase
-                  .from('subcategories')
-                  .select('*')
-                  .eq('name', csvShop.subcategory_name)
-                  .single();
-                
-                if (fetchError || !fetchedSub) {
-                  throw new Error(`Failed to fetch existing subcategory "${csvShop.subcategory_name}"`);
-                }
-                subcategoryId = fetchedSub.id;
-              } else {
-                throw new Error(`Failed to create subcategory "${csvShop.subcategory_name}": ${error.message}`);
-              }
-            } else if (newSubcategory) {
-              subcategoryId = newSubcategory.id;
-              createdSubcategories.push(csvShop.subcategory_name);
-            } else {
-              throw new Error(`Failed to create subcategory "${csvShop.subcategory_name}"`);
-            }
+            // Fallback: Find any subcategory in the category
+            const fallbackSubcategory = updatedSubcategories?.find(sub => 
+              sub.categories?.name === csvShop.category_name
+            );
+            subcategoryId = fallbackSubcategory?.id || defaultSubcategoryId;
           }
         } else {
-          // Fallback to default subcategory
-          subcategoryId = defaultSubcategoryId;
+          // Legacy format: Find first subcategory in the category
+          const categorySubcategory = updatedSubcategories?.find(sub => 
+            sub.categories?.name === csvShop.category_name
+          );
+          subcategoryId = categorySubcategory?.id || defaultSubcategoryId;
         }
 
         shopDataWithIds.push({
@@ -424,10 +408,6 @@ export default function ShopCategories() {
       
       if (createdCategories.length > 0) {
         description += ` Created ${createdCategories.length} new categories: ${createdCategories.join(', ')}.`;
-      }
-      
-      if (createdSubcategories.length > 0) {
-        description += ` Created ${createdSubcategories.length} new subcategories under "Unknown Category": ${createdSubcategories.join(', ')}.`;
       }
       
       toast({
