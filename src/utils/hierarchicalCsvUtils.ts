@@ -10,7 +10,7 @@ export interface HierarchicalCSVData {
 }
 
 export const exportHierarchicalCSV = (categories: Category[], subcategoriesWithCategories: any[]) => {
-  const headers = ['Category Name', 'Category Color', 'Subcategory Name', 'Subcategory Color'];
+  const headers = ['Category Name', 'Subcategory Name'];
   
   const csvContent = [
     headers.join(','),
@@ -20,15 +20,11 @@ export const exportHierarchicalCSV = (categories: Category[], subcategoriesWithC
       if (categorySubcategories.length > 0) {
         return categorySubcategories.map(sub => [
           `"${category.name.replace(/"/g, '""')}"`,
-          `"${category.color.replace(/"/g, '""')}"`,
           `"${sub.name.replace(/"/g, '""')}"`,
-          `"${sub.color.replace(/"/g, '""')}"`,
         ].join(','));
       } else {
         return [[
           `"${category.name.replace(/"/g, '""')}"`,
-          `"${category.color.replace(/"/g, '""')}"`,
-          `""`,
           `""`,
         ].join(',')];
       }
