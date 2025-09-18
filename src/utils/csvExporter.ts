@@ -11,12 +11,12 @@ export const exportToCSV = (expenses: ExpenseData[]) => {
       `"${expense.fecha}"`,
       `"${expense.importe}"`,
       `"EUR"`,
-      `""`,
+      `"Iberia Card ${expense.card_number.slice(-4)}"`,
       `"Iberia Card ${expense.card_number.slice(-4)}"`,
       `"${expense.comercio}"`,
       `""`,
-      `""`,
-      `"${expense.categoria}"`
+      `"${expense.categoria}"`,
+      `"${expense.subcategoria}"`
     ].join(','))
   ].join('\n');
 
