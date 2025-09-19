@@ -127,14 +127,25 @@ function parseSpanishNumber(str: string | number): number {
   return parseFloat(cleanStr) || 0;
 }
 
-function formatDate(dateStr: string): string {
-  if (!dateStr) return '';
+function formatDate(dateValue: any): string {
+  if (!dateValue) return '';
+  
+  // Convert to string if it's not already
+  const dateStr = String(dateValue);
   
   // Handle DD/MM/YYYY format
-  const parts = dateStr.split('/');
-  if (parts.length === 3) {
-    const [day, month, year] = parts;
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  if (dateStr.includes('/')) {
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+      const [day, month, year] = parts;
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+  }
+  
+  // Handle Excel date number format
+  if (!isNaN(Number(dateValue)) && Number(dateValue) > 40000) {
+    const excelDate = new Date((Number(dateValue) - 25569) * 86400 * 1000);
+    return excelDate.toISOString().split('T')[0];
   }
   
   return dateStr;
