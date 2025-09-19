@@ -94,14 +94,15 @@ async function parseINGFile(file: File): Promise<INGProcessingResult> {
 
 function convertINGToExpenseData(transactions: INGTransaction[], shops: Shop[]): ExpenseData[] {
   return transactions.map((transaction, index) => {
-    // Try to match with existing shops
+    // For ING transactions, we keep the original ING categories as the primary categorization
+    // The shop matching is used to potentially override categories if there's an exact match
     const matchedShop = findMatchingShop(transaction.description, shops);
     
     return {
       card_number: 'ING Bank',
       fecha: transaction.date,
       comercio: transaction.description,
-      importe: Math.abs(transaction.amount).toFixed(2),
+      importe: transaction.amount.toFixed(2), // Keep original sign (positive/negative)
       categoria: matchedShop?.category || transaction.category,
       subcategoria: matchedShop?.subcategory || transaction.subcategory
     };
@@ -123,7 +124,33 @@ function parseSpanishNumber(str: string | number): number {
   if (!str) return 0;
   
   // Handle Spanish number format (comma as decimal separator, dot as thousands separator)
-  const cleanStr = str.toString().replace(/\./g, '').replace(',', '.');
+  let cleanStr = str.toString().trim();
+  
+  // Remove thousands separators (dots) but preserve the decimal comma
+  // First, check if there's a comma (decimal separator)
+  const hasDecimalComma = cleanStr.includes(',');
+  
+  if (hasDecimalComma) {
+    // Split by comma to separate integer and decimal parts
+    const parts = cleanStr.split(',');
+    const integerPart = parts[0].replace(/\./g, ''); // Remove dots from integer part
+    const decimalPart = parts[1] || '0';
+    cleanStr = `${integerPart}.${decimalPart}`;
+  } else {
+    // No decimal comma, just remove dots (they might be thousands separators)
+    // But be careful: if there are only 3 digits after the last dot, it might be decimal
+    const dotIndex = cleanStr.lastIndexOf('.');
+    if (dotIndex > 0 && cleanStr.length - dotIndex <= 3) {
+      // Might be decimal separator, keep it
+      const beforeDot = cleanStr.substring(0, dotIndex).replace(/\./g, '');
+      const afterDot = cleanStr.substring(dotIndex + 1);
+      cleanStr = `${beforeDot}.${afterDot}`;
+    } else {
+      // Remove all dots (thousands separators)
+      cleanStr = cleanStr.replace(/\./g, '');
+    }
+  }
+  
   return parseFloat(cleanStr) || 0;
 }
 
