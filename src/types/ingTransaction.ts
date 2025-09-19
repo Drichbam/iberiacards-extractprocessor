@@ -7,6 +7,10 @@ export interface INGTransaction {
   hasImage: boolean;
   amount: number;
   balance: number;
+  // Parsed fields
+  titulo: string;
+  receptor: string;
+  uso: string;
 }
 
 export interface INGProcessingResult {

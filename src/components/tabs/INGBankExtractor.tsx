@@ -91,8 +91,8 @@ export default function INGBankExtractor() {
           <CardContent>
             <ExpenseTable 
               expenses={expenses}
-              calculatedTotal={expenses.reduce((sum, exp) => sum + parseFloat(exp.importe), 0)}
-              expectedTotal={expenses.reduce((sum, exp) => sum + parseFloat(exp.importe), 0)}
+              calculatedTotal={expenses.reduce((sum, exp) => sum + parseFloat(exp.cantidad), 0)}
+              expectedTotal={expenses.reduce((sum, exp) => sum + parseFloat(exp.cantidad), 0)}
               totalMatch={true}
               categories={[]}
             />

@@ -79,7 +79,9 @@ async function parseINGFile(file: File): Promise<INGProcessingResult> {
       comment: comment || '',
       hasImage: hasImageStr === 'Sí',
       amount,
-      balance
+      balance,
+      // Parse the description into components
+      ...parseConcepto(description || '')
     });
   }
 
@@ -92,17 +94,167 @@ async function parseINGFile(file: File): Promise<INGProcessingResult> {
   };
 }
 
+function parseConcepto(description: string): { titulo: string; receptor: string; uso: string } {
+  if (!description) {
+    return { titulo: '', receptor: '', uso: '' };
+  }
+
+  const desc = description.trim();
+  
+  // Bizum patterns
+  if (desc.startsWith('Bizum enviado a ')) {
+    const rest = desc.substring('Bizum enviado a '.length);
+    const parts = rest.split(' ');
+    if (parts.length >= 3) {
+      // Assume first two parts are name (could be more), rest is usage
+      const nameEndIndex = rest.lastIndexOf(' ');
+      if (nameEndIndex > 0) {
+        return {
+          titulo: 'Bizum enviado a',
+          receptor: rest.substring(0, nameEndIndex),
+          uso: rest.substring(nameEndIndex + 1)
+        };
+      }
+    }
+    return {
+      titulo: 'Bizum enviado a',
+      receptor: rest,
+      uso: ''
+    };
+  }
+  
+  if (desc.startsWith('Bizum recibido de ')) {
+    const rest = desc.substring('Bizum recibido de '.length);
+    const parts = rest.split(' ');
+    if (parts.length >= 4) {
+      // Find where the name ends (usually before description)
+      // Look for common patterns or assume last part is usage
+      const nameEndIndex = rest.lastIndexOf(' ');
+      if (nameEndIndex > 0) {
+        return {
+          titulo: 'Bizum recibido de',
+          receptor: rest.substring(0, nameEndIndex),
+          uso: rest.substring(nameEndIndex + 1)
+        };
+      }
+    }
+    return {
+      titulo: 'Bizum recibido de',
+      receptor: rest,
+      uso: ''
+    };
+  }
+  
+  // Transfer patterns
+  if (desc.startsWith('Transferencia recibida de ')) {
+    const rest = desc.substring('Transferencia recibida de '.length);
+    const parts = rest.split(' ');
+    if (parts.length >= 4) {
+      // Assume last part is usage description
+      const nameEndIndex = rest.lastIndexOf(' ');
+      if (nameEndIndex > 0) {
+        return {
+          titulo: 'Transferencia recibida de',
+          receptor: rest.substring(0, nameEndIndex),
+          uso: rest.substring(nameEndIndex + 1)
+        };
+      }
+    }
+    return {
+      titulo: 'Transferencia recibida de',
+      receptor: rest,
+      uso: ''
+    };
+  }
+  
+  // Payment patterns
+  if (desc.startsWith('Pago en ')) {
+    const rest = desc.substring('Pago en '.length);
+    return {
+      titulo: 'Pago en',
+      receptor: rest,
+      uso: ''
+    };
+  }
+  
+  // Receipt patterns
+  if (desc.startsWith('Recibo ')) {
+    const rest = desc.substring('Recibo '.length);
+    return {
+      titulo: 'Recibo',
+      receptor: rest,
+      uso: ''
+    };
+  }
+  
+  // Traspaso patterns
+  if (desc.includes('Traspaso')) {
+    return {
+      titulo: desc,
+      receptor: '',
+      uso: ''
+    };
+  }
+  
+  // Cargo/Abono patterns
+  if (desc.startsWith('Cargo ') || desc.startsWith('Abono ')) {
+    const spaceIndex = desc.indexOf(' ');
+    return {
+      titulo: desc.substring(0, spaceIndex),
+      receptor: desc.substring(spaceIndex + 1),
+      uso: ''
+    };
+  }
+  
+  // Nomina pattern
+  if (desc.startsWith('Nomina recibida ')) {
+    const rest = desc.substring('Nomina recibida '.length);
+    return {
+      titulo: 'Nomina recibida',
+      receptor: rest,
+      uso: ''
+    };
+  }
+  
+  // Default: try to split on common patterns
+  const commonPrefixes = [
+    'Comisión', 'Reintegro', 'Ingreso', 'Gasto', 'Abono', 'Cargo'
+  ];
+  
+  for (const prefix of commonPrefixes) {
+    if (desc.startsWith(prefix + ' ')) {
+      const rest = desc.substring(prefix.length + 1);
+      return {
+        titulo: prefix,
+        receptor: rest,
+        uso: ''
+      };
+    }
+  }
+  
+  // If no pattern matches, return the whole description as titulo
+  return {
+    titulo: desc,
+    receptor: '',
+    uso: ''
+  };
+}
+
 function convertINGToExpenseData(transactions: INGTransaction[], shops: Shop[]): ExpenseData[] {
   return transactions.map((transaction, index) => {
+    // Parse the concepto into three parts
+    const parsed = parseConcepto(transaction.description);
+    
     // For ING transactions, we keep the original ING categories as the primary categorization
     // The shop matching is used to potentially override categories if there's an exact match
     const matchedShop = findMatchingShop(transaction.description, shops);
     
     return {
-      card_number: 'ING Bank',
       fecha: transaction.date,
-      comercio: transaction.description,
-      importe: transaction.amount.toFixed(2), // Keep original sign (positive/negative)
+      cantidad: transaction.amount.toFixed(2), // Keep original sign (positive/negative)
+      titulo: parsed.titulo,
+      receptor: parsed.receptor,
+      uso: parsed.uso,
       categoria: matchedShop?.category || transaction.category,
       subcategoria: matchedShop?.subcategory || transaction.subcategory
     };

@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Download, ChevronUp, ChevronDown, CheckCircle, AlertTriangle, Copy, Filter } from "lucide-react";
 import { ExpenseData } from "@/types/expense";
 import { Category } from "@/types/category";
+import { Subcategory } from "@/types/subcategory";
 import { exportToCSV } from "@/utils/csvExporter";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -14,16 +15,17 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recha
 
 interface ExpenseTableProps {
   expenses: ExpenseData[];
-  calculatedTotal: number;
-  expectedTotal: number;
-  totalMatch: boolean;
+  calculatedTotal?: number;
+  expectedTotal?: number;
+  totalMatch?: boolean;
   categories: Category[];
+  subcategories?: Subcategory[];
 }
 
-type SortField = keyof ExpenseData;
+type SortField = 'fecha' | 'cantidad' | 'titulo' | 'receptor' | 'uso' | 'categoria' | 'subcategoria';
 type SortDirection = 'asc' | 'desc';
 
-export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMatch, categories }: ExpenseTableProps) => {
+export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMatch, categories, subcategories = [] }: ExpenseTableProps) => {
   const [sortField, setSortField] = useState<SortField>('fecha');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -51,7 +53,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
     const aValue = a[sortField];
     const bValue = b[sortField];
     
-    if (sortField === 'importe') {
+    if (sortField === 'cantidad') {
       const aNum = parseFloat(aValue.toString().replace(',', '.'));
       const bNum = parseFloat(bValue.toString().replace(',', '.'));
       return sortDirection === 'asc' ? aNum - bNum : bNum - aNum;
@@ -76,7 +78,8 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
     const otherShops = [...new Set(
       expenses
         .filter(expense => expense.categoria === "Otros gastos (otros)")
-        .map(expense => expense.comercio)
+        .map(expense => expense.receptor || expense.titulo)
+        .filter(Boolean)
     )].sort();
     
     const shopsList = otherShops.join('\n');
@@ -90,7 +93,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
 
   const handleCopyAllMerchants = () => {
     const uniqueMerchants = [...new Set(
-      expenses.map(expense => expense.comercio)
+      expenses.map(expense => expense.receptor || expense.titulo).filter(Boolean)
     )].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
     
     const merchantsList = uniqueMerchants.join('\n');
@@ -169,37 +172,39 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
       </div>
 
       {/* Total Verification Section */}
-      <div className="mb-6 p-4 rounded-lg border bg-muted/30">
-        <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-          {totalMatch ? (
-            <CheckCircle className="h-5 w-5 text-success" />
-          ) : (
-            <AlertTriangle className="h-5 w-5 text-warning" />
-          )}
-          Total Verification
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div>
-            <span className="text-muted-foreground">Calculated Total:</span>
-            <p className="font-semibold text-lg">€{calculatedTotal.toFixed(2)}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Expected Total (TOTAL A CARGAR):</span>
-            <p className="font-semibold text-lg">€{expectedTotal.toFixed(2)}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Status:</span>
-            <p className={cn("font-semibold", totalMatch ? "text-success" : "text-warning")}>
-              {totalMatch ? "✓ Match" : "⚠ Difference"}
-            </p>
-            {!totalMatch && (
-              <p className="text-xs text-muted-foreground">
-                Difference: €{Math.abs(calculatedTotal - expectedTotal).toFixed(2)}
-              </p>
+      {(calculatedTotal !== undefined && expectedTotal !== undefined) && (
+        <div className="mb-6 p-4 rounded-lg border bg-muted/30">
+          <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+            {totalMatch ? (
+              <CheckCircle className="h-5 w-5 text-success" />
+            ) : (
+              <AlertTriangle className="h-5 w-5 text-warning" />
             )}
+            Total Verification
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div>
+              <span className="text-muted-foreground">Calculated Total:</span>
+              <p className="font-semibold text-lg">€{calculatedTotal.toFixed(2)}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Expected Total (TOTAL A CARGAR):</span>
+              <p className="font-semibold text-lg">€{expectedTotal.toFixed(2)}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Status:</span>
+              <p className={cn("font-semibold", totalMatch ? "text-success" : "text-warning")}>
+                {totalMatch ? "✓ Match" : "⚠ Difference"}
+              </p>
+              {!totalMatch && (
+                <p className="text-xs text-muted-foreground">
+                  Difference: €{Math.abs(calculatedTotal - expectedTotal).toFixed(2)}
+                </p>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Category Breakdown */}
       <div className="mb-6 p-4 rounded-lg border bg-muted/30">
@@ -207,7 +212,7 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
         
         {(() => {
           const categoryTotals = expenses.reduce((acc, expense) => {
-            const amount = parseFloat(expense.importe.replace(',', '.')) || 0;
+            const amount = Math.abs(parseFloat(expense.cantidad.replace(',', '.'))) || 0;
             acc[expense.categoria] = (acc[expense.categoria] || 0) + amount;
             return acc;
           }, {} as Record<string, number>);
@@ -345,327 +350,65 @@ export const ExpenseTable = ({ expenses, calculatedTotal, expectedTotal, totalMa
         })()}
       </div>
 
-      {/* Subcategory Breakdown */}
-      <div className="mb-6 p-4 rounded-lg border bg-muted/30">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-foreground">
-            Spending by Subcategory
-            {selectedCategoryForSubcategories && (
-              <span className="text-sm font-normal text-muted-foreground ml-2">
-                (filtered by {selectedCategoryForSubcategories})
-              </span>
-            )}
-          </h3>
-          <div className="flex gap-2">
-            {selectedCategoryForSubcategories && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedCategoryForSubcategories(null)}
-                className="text-xs"
-              >
-                Clear Category Filter
-              </Button>
-            )}
-            {subcategoryFilter !== 'all' && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSubcategoryFilter('all')}
-                className="text-xs"
-              >
-                Clear Subcategory Filter
-              </Button>
-            )}
-          </div>
-        </div>
-        
-        {(() => {
-          // Filter expenses by selected category if one is selected
-          const filteredExpensesForSubcategories = selectedCategoryForSubcategories 
-            ? expenses.filter(expense => expense.categoria === selectedCategoryForSubcategories)
-            : expenses;
-
-          const subcategoryTotals = filteredExpensesForSubcategories.reduce((acc, expense) => {
-            const amount = parseFloat(expense.importe.replace(',', '.')) || 0;
-            acc[expense.subcategoria] = (acc[expense.subcategoria] || 0) + amount;
-            return acc;
-          }, {} as Record<string, number>);
-          
-          const grandTotal = Object.values(subcategoryTotals).reduce((sum, amount) => sum + amount, 0);
-          
-          const subcategoryData = Object.entries(subcategoryTotals)
-            .sort(([,a], [,b]) => b - a)
-            .map(([subcategory, total]) => {
-              const percentage = grandTotal > 0 ? (total / grandTotal) * 100 : 0;
-              return {
-                name: subcategory,
-                value: total,
-                percentage: percentage
-              };
-            });
-
-          // Generate colors for subcategories using a color palette
-          const generateSubcategoryColor = (index: number) => {
-            const hues = [210, 340, 120, 30, 270, 180, 60, 300, 0, 150, 240, 90];
-            const hue = hues[index % hues.length];
-            return `hsl(${hue}, 70%, 50%)`;
-          };
-          
-          return (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Table */}
-              <div>
-                <h4 className="font-medium text-foreground mb-3">Summary Table</h4>
-                <div className="rounded-lg border overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted border-b-2 border-border">
-                        <TableHead className="font-bold text-foreground w-12">Color</TableHead>
-                        <TableHead className="font-bold text-foreground">Subcategory</TableHead>
-                        <TableHead className="font-bold text-foreground text-right">Percentage</TableHead>
-                        <TableHead className="font-bold text-foreground text-right">Amount</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {subcategoryData.map((item, index) => (
-                        <TableRow 
-                          key={item.name} 
-                          className={cn(
-                            "hover:bg-muted/30 cursor-pointer transition-colors",
-                            subcategoryFilter === item.name && "bg-primary/10 border-l-4 border-l-primary"
-                          )}
-                          onClick={() => {
-                            if (subcategoryFilter === item.name) {
-                              setSubcategoryFilter('all');
-                            } else {
-                              setSubcategoryFilter(item.name);
-                            }
-                          }}
-                        >
-                          <TableCell className="w-12">
-                            <div 
-                              className="w-4 h-4 rounded-sm border border-border" 
-                              style={{ backgroundColor: generateSubcategoryColor(index) }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Badge 
-                              variant="secondary" 
-                              className="text-xs"
-                            >
-                              {item.name}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right font-semibold">
-                            {item.percentage.toFixed(1)}%
-                          </TableCell>
-                          <TableCell className="text-right font-bold">
-                            €{item.value.toFixed(2)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-
-              {/* Pie Chart */}
-              <div>
-                <h4 className="font-medium text-foreground mb-3">Visual Distribution</h4>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={subcategoryData}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={100}
-                        innerRadius={40}
-                        fill="hsl(var(--primary))"
-                        dataKey="value"
-                        label={({ percentage, index }) => {
-                          if (percentage < 5) return '';
-                          return `${percentage.toFixed(1)}%`;
-                        }}
-                        labelLine={false}
-                      >
-                        {subcategoryData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={generateSubcategoryColor(index)} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        content={({ active, payload }) => {
-                          if (active && payload && payload.length > 0) {
-                            const data = payload[0];
-                            const subcategory = data.payload?.name || 'Unknown';
-                            const value = Number(data.value) || 0;
-                            const percentage = data.payload?.percentage || 0;
-                            return (
-                              <div className="bg-background border border-border rounded-lg p-3 shadow-lg max-w-xs">
-                                <p className="font-bold text-foreground text-base mb-2">
-                                  {subcategory}
-                                </p>
-                                <p className="text-primary font-semibold text-sm">
-                                  €{value.toFixed(2)}
-                                </p>
-                                <p className="text-muted-foreground text-sm">
-                                  {percentage.toFixed(1)}% of total spending
-                                </p>
-                              </div>
-                            );
-                          }
-                          return null;
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-      </div>
-
-      {/* Otros gastos (otros) Shops */}
-      {expenses.some(expense => expense.categoria === "Otros gastos (otros)") && (
-        <div className="mb-6 p-4 rounded-lg border bg-muted/30">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-foreground">Shops Categorized as "Otros gastos (otros)"</h3>
-            <Button
-              onClick={handleCopyOtherShops}
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2"
-            >
-              <Copy className="h-4 w-4" />
-              Copy List
-            </Button>
-          </div>
-          <div className="text-sm text-muted-foreground mb-2">
-            {[...new Set(
-              expenses
-                .filter(expense => expense.categoria === "Otros gastos (otros)")
-                .map(expense => expense.comercio)
-            )].length} unique shops
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-32 overflow-y-auto">
-            {[...new Set(
-              expenses
-                .filter(expense => expense.categoria === "Otros gastos (otros)")
-                .map(expense => expense.comercio)
-            )]
-              .sort()
-              .map((shop, index) => (
-                <div key={index} className="text-sm p-2 rounded bg-background/50 border">
-                  {shop}
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-
+      {/* Transactions Table */}
       <div className="rounded-lg border overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted border-b-2 border-border">
               <TableHead className="font-bold text-foreground">
-                <SortButton field="card_number">Card Number</SortButton>
-              </TableHead>
-              <TableHead className="font-bold text-foreground">
-                <SortButton field="fecha">Date</SortButton>
-              </TableHead>
-              <TableHead className="font-bold text-foreground">
-                <SortButton field="comercio">Merchant</SortButton>
+                <SortButton field="fecha">Fecha</SortButton>
               </TableHead>
               <TableHead className="font-bold text-foreground text-right">
-                <SortButton field="importe">Amount</SortButton>
+                <SortButton field="cantidad">Cantidad</SortButton>
               </TableHead>
               <TableHead className="font-bold text-foreground">
-                <div className="flex items-center gap-2">
-                  <SortButton field="subcategoria">Subcategory</SortButton>
-                  <Select value={subcategoryFilter} onValueChange={setSubcategoryFilter}>
-                    <SelectTrigger className="w-[150px] h-7 text-xs">
-                      <div className="flex items-center gap-1">
-                        <Filter className="h-3 w-3" />
-                        <SelectValue placeholder="All" />
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Subcategories</SelectItem>
-                      {[...new Set(expenses.map(expense => expense.subcategoria))]
-                        .sort()
-                        .map(subcategory => (
-                          <SelectItem key={subcategory} value={subcategory}>
-                            <span className="truncate max-w-[120px]">{subcategory}</span>
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <SortButton field="titulo">Título</SortButton>
               </TableHead>
               <TableHead className="font-bold text-foreground">
-                <div className="flex items-center gap-2">
-                  <SortButton field="categoria">Category</SortButton>
-                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger className="w-[150px] h-7 text-xs">
-                      <div className="flex items-center gap-1">
-                        <Filter className="h-3 w-3" />
-                        <SelectValue placeholder="All" />
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      {[...new Set(expenses.map(expense => expense.categoria))]
-                        .sort()
-                        .map(category => (
-                          <SelectItem key={category} value={category}>
-                            <div className="flex items-center gap-2">
-                              <div 
-                                className="w-2 h-2 rounded-sm border border-border" 
-                                style={{ backgroundColor: getCategoryHexColor(category) }}
-                              />
-                              <span className="truncate max-w-[120px]">{category}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <SortButton field="receptor">Receptor</SortButton>
+              </TableHead>
+              <TableHead className="font-bold text-foreground">
+                <SortButton field="uso">Uso</SortButton>
+              </TableHead>
+              <TableHead className="font-bold text-foreground">
+                <SortButton field="categoria">Categoría</SortButton>
+              </TableHead>
+              <TableHead className="font-bold text-foreground">
+                <SortButton field="subcategoria">Subcategoría</SortButton>
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sortedExpenses.map((expense, index) => (
               <TableRow key={index} className="hover:bg-muted/30">
-                <TableCell className="font-mono text-sm">
-                  {expense.card_number}
+                <TableCell>{expense.fecha}</TableCell>
+                <TableCell className="text-right font-mono">
+                  {parseFloat(expense.cantidad) >= 0 ? '+' : ''}{expense.cantidad}€
                 </TableCell>
-                <TableCell className="text-sm">
-                  {expense.fecha}
+                <TableCell className="max-w-xs truncate" title={expense.titulo}>
+                  {expense.titulo}
                 </TableCell>
-                <TableCell className="max-w-xs truncate">
-                  {expense.comercio}
+                <TableCell className="max-w-xs truncate" title={expense.receptor}>
+                  {expense.receptor}
                 </TableCell>
-                <TableCell className="text-right font-semibold">
-                  €{expense.importe}
-                </TableCell>
-                <TableCell className="max-w-xs truncate">
-                  {expense.subcategoria}
+                <TableCell className="max-w-xs truncate" title={expense.uso}>
+                  {expense.uso}
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-sm border border-border" 
-                      style={{ backgroundColor: getPieChartCategoryColor(expense.categoria) }}
-                    />
-                    <Badge 
-                      variant="secondary" 
-                      className="text-xs"
-                    >
-                      {expense.categoria}
-                    </Badge>
-                  </div>
+                  <Badge 
+                    variant="outline" 
+                    className={getCategoryColor(expense.categoria)}
+                  >
+                    {expense.categoria}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge 
+                    variant="outline" 
+                    className={getCategoryColor(expense.subcategoria)}
+                  >
+                    {expense.subcategoria}
+                  </Badge>
                 </TableCell>
               </TableRow>
             ))}
