@@ -74,11 +74,10 @@ export const processCardTransactions = (
       }
 
       allExpenses.push({
+        card_number: cardNumber,
         fecha: formattedDate,
-        cantidad: cleanAmount,
-        titulo: '', // Empty for credit card transactions
-        receptor: merchant,
-        uso: '', // Empty for credit card transactions
+        comercio: merchant,
+        importe: cleanAmount,
         categoria: category,
         subcategoria: subcategory,
       });

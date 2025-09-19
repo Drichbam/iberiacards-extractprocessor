@@ -74,7 +74,7 @@ export default function CreditCardExpenseCategorizer() {
   const recategorizeExpenses = (expenses: ExpenseData[], updatedShops: Shop[]): ExpenseData[] => {
     return expenses.map(expense => {
       const matchingShop = updatedShops.find(shop => 
-        shop.shop_name.toLowerCase() === (expense.receptor || expense.titulo || '').toLowerCase()
+        shop.shop_name.toLowerCase() === expense.comercio.toLowerCase()
       );
       
       if (matchingShop) {

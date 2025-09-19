@@ -1,9 +1,8 @@
 export interface ExpenseData {
+  card_number: string;
   fecha: string;
-  cantidad: string;
-  titulo: string;
-  receptor: string;
-  uso: string;
+  comercio: string;
+  importe: string;
   categoria: string;
   subcategoria: string;
 }
